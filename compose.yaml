@@ -6,6 +6,7 @@ services:
       POSTGRES_USER: synapse
       POSTGRES_PASSWORD: ${SYNAPSE_DB_PASSWORD:?Définir SYNAPSE_DB_PASSWORD dans .env}
       POSTGRES_DB: synapse
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
     volumes:
       - kibare_postgres_data:/var/lib/postgresql/data
     healthcheck:
