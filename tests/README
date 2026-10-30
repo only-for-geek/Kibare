@@ -1,0 +1,193 @@
+# Tests et validation de Kibare
+
+## 1. Objectif
+
+Ce document décrit les procédures de vérification du prototype Kibare.
+
+L'objectif est de permettre aux développeurs de contrôler le bon fonctionnement des composants et de détecter les éventuelles erreurs de configuration.
+
+Les tests sont à effectuer depuis la racine du projet.
+
+## 2. Prérequis
+
+Avant de commencer, vérifier que les éléments suivants sont installés :
+
+- Docker Engine.
+- Docker Compose (plugin `docker compose`).
+- Git.
+
+Le projet doit avoir été récupéré et initialisé conformément aux instructions du fichier `synapse/README`.
+
+## 3. Vérification de la configuration Docker
+
+Vérifier que le fichier Compose est valide :
+
+```bash
+docker compose config -q
+```
+
+Cette commande doit se terminer sans erreur.
+
+Afficher les images utilisées :
+
+```bash
+docker compose config --images
+```
+
+Vérifier que les services attendus sont déclarés :
+
+```bash
+docker compose config --services
+```
+
+Résultat attendu :
+
+```text
+db
+synapse
+element
+```
+
+## 4. Vérification de l'état des services
+
+Démarrer l'ensemble des services :
+
+```bash
+docker compose up -d
+```
+
+Afficher leur état :
+
+```bash
+docker compose ps
+```
+
+Les conteneurs doivent être démarrés. Le service PostgreSQL doit notamment être indiqué comme sain (*healthy*) après son initialisation.
+
+Consulter les journaux en cas de problème :
+
+```bash
+docker compose logs --tail=100
+```
+
+Pour consulter les journaux d'un service particulier :
+
+```bash
+docker compose logs --tail=100 synapse
+docker compose logs --tail=100 db
+docker compose logs --tail=100 element
+```
+
+## 5. Vérification de Synapse
+
+Vérifier que Synapse peut analyser son fichier de configuration :
+
+```bash
+docker compose run --rm --no-deps \
+  --entrypoint python synapse \
+  -m synapse.config \
+  -c /data/homeserver.yaml
+```
+
+Résultat attendu :
+
+```text
+Config parses OK!
+```
+
+Vérifier ensuite que l'API HTTP de Synapse répond :
+
+```bash
+curl -i http://127.0.0.1:8008/_matrix/client/versions
+```
+
+Une réponse HTTP réussie avec un document JSON contenant les versions prises en charge indique que l'API est accessible.
+
+## 6. Vérification d'Element Web
+
+Ouvrir l'adresse suivante dans un navigateur :
+
+`http://127.0.0.1:8080`
+
+Vérifier les points suivants :
+
+- La page Element Web s'affiche.
+- La marque Kibare est visible.
+- Le serveur `kibare.test` est proposé par défaut.
+- Le client peut communiquer avec le serveur Matrix.
+
+Une page qui s'affiche ne suffit pas à prouver que l'authentification et les échanges fonctionnent correctement.
+
+## 7. Tests fonctionnels
+
+Effectuer les vérifications suivantes depuis l'interface Element :
+
+- [ ] Création ou connexion à un compte utilisateur.
+- [ ] Création d'un salon de discussion.
+- [ ] Envoi et réception de messages.
+- [ ] Synchronisation des messages entre deux comptes.
+- [ ] Vérification du fonctionnement après redémarrage des services.
+
+Pour valider correctement les échanges entre utilisateurs, utiliser au moins deux comptes distincts.
+
+## 8. Tests de sécurité
+
+Les vérifications suivantes sont à effectuer dans le cadre de la validation du prototype :
+
+- [ ] Vérifier que PostgreSQL n'est pas directement accessible depuis l'hôte.
+- [ ] Vérifier que les ports Synapse et Element sont liés à `127.0.0.1`.
+- [ ] Vérifier que `.env` est ignoré par Git.
+- [ ] Vérifier que `synapse/data/` est ignoré par Git.
+- [ ] Vérifier le chiffrement de bout en bout dans un salon compatible.
+- [ ] Vérifier le comportement après déconnexion et révocation d'une session.
+
+Pour vérifier que les fichiers sensibles sont ignorés :
+
+```bash
+git check-ignore -v .env
+git check-ignore -v synapse/data/homeserver.yaml
+```
+
+Ces commandes doivent indiquer les règles correspondantes de `.gitignore`.
+
+## 9. Vérification de la persistance
+
+Redémarrer les services :
+
+```bash
+docker compose restart
+```
+
+Vérifier que les données et les comptes sont toujours disponibles après le redémarrage.
+
+Cette vérification ne remplace pas un véritable test de sauvegarde et de restauration.
+
+## 10. Nettoyage de l'environnement
+
+Pour arrêter les services sans supprimer les données persistantes :
+
+```bash
+docker compose stop
+```
+
+Pour les redémarrer ultérieurement :
+
+```bash
+docker compose up -d
+```
+
+**Attention :** ne pas utiliser `docker compose down -v` dans un environnement contenant des données à conserver. Cette commande supprime également les volumes Docker associés au projet.
+
+## 11. Résultats des tests
+
+Les résultats doivent être consignés au fur et à mesure de leur exécution.
+
+Pour chaque test, noter :
+
+- La date d'exécution.
+- L'environnement utilisé.
+- Le résultat obtenu.
+- Les éventuelles erreurs rencontrées.
+- Les corrections apportées.
+
+Un test ne doit être considéré comme validé qu'après avoir été réellement exécuté et vérifié.
