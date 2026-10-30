@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres@sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: ${SYNAPSE_DB_PASSWORD:?Définir SYNAPSE_DB_PASSWORD dans .env}
+      POSTGRES_DB: synapse
+    volumes:
+      - kibare_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse -d synapse"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  synapse:
+    image: matrixdotorg/synapse:v1.163.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./synapse/data:/data
+    ports:
+      - "127.0.0.1:8008:8008"
+
+  element:
+    image: vectorim/element-web@sha256:b0aa4b5a4fc1afaaff62e2dbd0c92d57e2b20724f3ccb2fef53aae949088c3d2
+    restart: unless-stopped
+    depends_on:
+      - synapse
+    volumes:
+      - ./element/config.json:/app/config.json:ro
+    ports:
+      - "127.0.0.1:8080:80"
+
+volumes:
+  kibare_postgres_data:
