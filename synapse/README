@@ -1,0 +1,171 @@
+# Installation et configuration de Matrix Synapse
+
+## 1. Présentation
+
+Kibare utilise **Matrix Synapse** comme serveur de communication (*homeserver*).
+
+Synapse est exécuté dans un conteneur Docker et utilise PostgreSQL pour la persistance des données.
+
+Cette documentation décrit les étapes de mise en place de Synapse dans l'environnement Kibare.
+
+## 2. Prérequis
+
+Avant de commencer, installer :
+
+- Docker Engine.
+- Docker Compose (plugin `docker compose`).
+- Git.
+
+Toutes les commandes suivantes sont à exécuter depuis la racine du projet Kibare.
+
+## 3. Préparation de l'environnement
+
+Créer le répertoire destiné aux données Synapse :
+
+```bash
+mkdir -p synapse/data
+```
+
+Créer le fichier d'environnement à partir du modèle :
+
+```bash
+cp .env.example .env
+```
+
+Modifier ensuite `.env` et remplacer la valeur indicative par un mot de passe robuste.
+
+Ne jamais publier ce fichier dans Git.
+
+## 4. Génération de la configuration Synapse
+
+Télécharger l'image utilisée par le projet :
+
+```bash
+docker pull matrixdotorg/synapse:v1.163.0
+```
+
+Générer la configuration initiale :
+
+```bash
+docker run --rm -it \
+  -v "$PWD/synapse/data:/data" \
+  -e SYNAPSE_SERVER_NAME=kibare.test \
+  -e SYNAPSE_REPORT_STATS=no \
+  matrixdotorg/synapse:v1.163.0 generate
+```
+
+Cette commande génère notamment :
+
+- `synapse/data/homeserver.yaml` : configuration principale du serveur.
+- `synapse/data/kibare.test.signing.key` : clé de signature du serveur.
+
+**Important :** cette opération est nécessaire lors de la première initialisation uniquement. Ne pas relancer la génération sur une installation existante.
+
+## 5. Configuration de PostgreSQL
+
+Ouvrir le fichier :
+
+```bash
+nano synapse/data/homeserver.yaml
+```
+
+Dans la section `database`, configurer le backend PostgreSQL avec les paramètres correspondant à l'environnement Docker Compose :
+
+- Type : `psycopg2`
+- Nom de base : `synapse`
+- Utilisateur : `synapse`
+- Hôte : `db`
+- Port : `5432`
+- Mot de passe : la même valeur que `SYNAPSE_DB_PASSWORD` dans `.env`.
+
+La configuration doit utiliser le service Docker `db` comme hôte, et non `localhost`.
+
+Le mot de passe doit être renseigné comme une valeur YAML ordinaire. Ne pas conserver une directive `!env_var SYNAPSE_DB_PASSWORD` : le conteneur Synapse ne reçoit pas cette variable d'environnement dans la configuration actuelle.
+
+Le fichier `homeserver.yaml` contient des informations sensibles et ne doit jamais être publié.
+
+## 6. Vérification de la configuration
+
+Vérifier que le fichier YAML peut être analysé par Synapse :
+
+```bash
+docker compose run --rm --no-deps \
+  --entrypoint python synapse \
+  -m synapse.config \
+  -c /data/homeserver.yaml
+```
+
+Le résultat attendu est :
+
+```text
+Config parses OK!
+```
+
+Cette vérification valide la syntaxe et l'analyse de la configuration, mais ne garantit pas à elle seule que la connexion à PostgreSQL fonctionne.
+
+## 7. Démarrage des services
+
+Démarrer d'abord PostgreSQL :
+
+```bash
+docker compose up -d db
+```
+
+Vérifier son état :
+
+```bash
+docker compose ps
+```
+
+Démarrer ensuite Synapse :
+
+```bash
+docker compose up -d synapse
+```
+
+Consulter les journaux :
+
+```bash
+docker compose logs -f synapse
+```
+
+## 8. Commandes d'administration utiles
+
+Depuis la racine du projet :
+
+```bash
+# État des conteneurs
+docker compose ps
+
+# Journaux de Synapse
+docker compose logs -f synapse
+
+# Redémarrage de Synapse
+docker compose restart synapse
+
+# Arrêt des services
+docker compose stop
+
+# Démarrage de l'ensemble des services
+docker compose up -d
+```
+
+## 9. Persistance et sécurité
+
+Le répertoire `synapse/data/` contient notamment la configuration et les clés nécessaires au fonctionnement du serveur.
+
+Il est monté dans le conteneur sur `/data` et exclu du dépôt Git.
+
+Précautions :
+
+- Ne jamais supprimer `synapse/data/` sans sauvegarde préalable.
+- Ne jamais publier les clés de signature.
+- Ne jamais publier le fichier `.env`.
+- Protéger `homeserver.yaml`, qui peut contenir le mot de passe PostgreSQL.
+- Sauvegarder les données et les clés nécessaires à la restauration.
+
+## 10. Documentation officielle
+
+- Documentation Synapse : https://element-hq.github.io/synapse/latest/
+- Dépôt officiel : https://github.com/element-hq/synapse
+- Spécification Matrix : https://spec.matrix.org/
