@@ -1,0 +1,12 @@
+# Secrets et variables d'environnement
+.env
+*.env
+!.env.example
+
+# Données persistantes et clés Synapse
+synapse/data/
+postgres/data/
+
+# Dépendances et fichiers locaux
+node_modules/
+.DS_Store
