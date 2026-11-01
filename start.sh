@@ -169,6 +169,23 @@ config["default_federate"] = False
 # Bloquer la création de comptes : seul un admin peut créer des utilisateurs.
 config["enable_registration"] = False
 
+# --- Minimisation des métadonnées ---
+
+# Désactiver la présence (statut en ligne/hors-ligne/dernière activité).
+config["presence"] = {"enabled": False}
+
+# Désactiver les aperçus d'URLs (évite les fuites IP vers des tiers).
+config["url_preview_enabled"] = False
+
+# Limiter la conservation des adresses IP de connexion (7 jours).
+config["user_ips_max_age"] = "7d"
+
+# Purge rapide des métadonnées des messages supprimés/caviardés (1 jour).
+config["redaction_retention_period"] = "1d"
+
+# Désactiver la collecte de statistiques internes d'usage.
+config["stats"] = {"enabled": False}
+
 path.write_text(
     yaml.safe_dump(config, sort_keys=False, allow_unicode=True)
 )

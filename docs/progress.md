@@ -19,6 +19,8 @@ Les éléments suivants ont été mis en place :
 - [x] Externalisation du mot de passe PostgreSQL dans un fichier `.env`.
 - [x] Mise en place des règles `.gitignore` pour exclure les fichiers sensibles et les données générées.
 - [x] Documentation initiale de l'architecture et des principes de sécurité.
+- [x] Chiffrement de bout en bout (E2EE) activé par défaut (Megolm / Olm).
+- [x] Minimisation des métadonnées (présence, URLs, IPs) et documentation dédiée ([docs/metadata.md](metadata.md)).
 
 ## 3. Éléments en cours de validation
 
