@@ -4,6 +4,9 @@
     "m.homeserver": {
       "base_url": "http://127.0.0.1:8008",
       "server_name": "kibare.test"
+    },
+    "io.element.e2ee": {
+      "default": true
     }
   },
   "disable_custom_urls": true,
@@ -16,5 +19,6 @@
 
   "bug_report_endpoint_url": null,
 
-  "default_federate": false
+  "default_federate": false,
+  "force_verification": true
 }
