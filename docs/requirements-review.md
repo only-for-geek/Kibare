@@ -1,4 +1,4 @@
-# Revue du brief — Sprint technique pré-Hackathon 2026
+# Revue du brief : Sprint technique pré-Hackathon 2026
 
 Cette revue distingue les fonctionnalités configurées des contrôles effectivement essayés. Les tests d'interface MFA et de révocation sont rapportés par l'équipe pendant les essais locaux ; ils ne constituent pas une certification ni un audit indépendant.
 
@@ -24,7 +24,7 @@ Cette revue distingue les fonctionnalités configurées des contrôles effective
 | Dépôt public et historique de commits progressifs | Le dépôt existe ; l'historique du sprint et la publication restent à gérer par l'équipe. Aucun push n'a été effectué par ce travail. |
 | Comptes fictifs | À créer/gérer localement pour la démonstration ; ne jamais versionner de secrets ou comptes actifs. |
 | Vidéo de démonstration (3 min) | À enregistrer après les scénarios fonctionnels complémentaires. |
-| Innovation adaptée | Portail en français, salons d'équipe privés/chiffrés/non fédérés et révocation ; compléter les preuves de chiffrement et la démonstration. |
+| Innovation adaptée | Portail d'accueil en français, console web d'administration, activation autonome du 2FA, salons d'équipe privés/chiffrés/non fédérés et révocation centralisée ; compléter les preuves de chiffrement et la démonstration. |
 | Interface/langue nationale | Interface en français ; une langue nationale n'est pas encore intégrée. |
 | Contribution au projet open source amont | Aucune contribution externe n'a été soumise. |
 | Tests automatisés | Tests unitaires locaux des politiques et workflows ; ils ne remplacent pas les essais E2EE, MFA complet et restauration. |
