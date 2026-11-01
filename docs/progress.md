@@ -16,7 +16,17 @@ Kibare est un prototype local de messagerie Matrix. Le parcours OIDC avec TOTP e
 | Configuration locale | Les services Compose ont démarré healthy ; OIDC, le callback SSO et l'accès de Synapse aux clés Keycloak ont répondu correctement. | Vérification locale d'intégration. |
 | Tests automatiques | Les tests unitaires couvrent les politiques d'identité/salon/rôle et plusieurs cas des workflows admin, dont les jetons invalides et les comptes désactivés. | Suite locale ; elle ne remplace pas les essais d'interface. |
 
-La connexion d'un nouvel appareil et la vérification des clés E2EE sont distinctes du MFA : le TOTP prouve l'authentification auprès de Keycloak ; la vérification d'appareil Matrix protège l'identité cryptographique et le partage des clés de chiffrement. Un nouvel appareil peut nécessiter une vérification par un appareil déjà approuvé ou une clé de récupération, selon l'état de la sauvegarde des clés et du compte.
+- [x] Mise en place de l'environnement Docker Compose.
+- [x] Configuration du serveur Matrix Synapse.
+- [x] Intégration de PostgreSQL comme base de données.
+- [x] Intégration du client web Element.
+- [x] Configuration d'Element pour utiliser le serveur Matrix de Kibare.
+- [x] Persistance des données PostgreSQL dans un volume Docker.
+- [x] Externalisation du mot de passe PostgreSQL dans un fichier `.env`.
+- [x] Mise en place des règles `.gitignore` pour exclure les fichiers sensibles et les données générées.
+- [x] Documentation initiale de l'architecture et des principes de sécurité.
+- [x] Chiffrement de bout en bout (E2EE) activé par défaut (Megolm / Olm).
+- [x] Minimisation des métadonnées (présence, URLs, IPs) et documentation dédiée ([docs/metadata.md](metadata.md)).
 
 ## Fonctionnalités présentes
 

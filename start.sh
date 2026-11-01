@@ -234,7 +234,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
 
     info "Configuration Synapse générée."
 
-    # Configuration PostgreSQL avec PyYAML.
+    # Configuration PostgreSQL et souveraineté avec PyYAML.
     docker run --rm -i \
         -v "$DATA_DIR:/data" \
         -e SYNAPSE_DB_PASSWORD="$DB_PASSWORD" \
@@ -251,6 +251,7 @@ path = Path("/data/homeserver.yaml")
 
 config = yaml.safe_load(path.read_text())
 
+# --- PostgreSQL ---
 config["database"] = {
     "name": "psycopg2",
     "args": {

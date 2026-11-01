@@ -5,11 +5,30 @@
     "m.homeserver": {
       "base_url": "http://127.0.0.1:8008",
       "server_name": "kibare.test"
+    },
+    "io.element.e2ee": {
+      "default": true
     }
   },
   "disable_custom_urls": true,
   "disable_registration": true,
   "disable_3pid_login": true,
   "disable_guests": true,
-  "default_country_code": "BF"
+  "default_country_code": "BF",
+
+  "integrations_ui_url": null,
+  "integrations_rest_url": null,
+  "integrations_widgets_urls": [],
+
+  "bug_report_endpoint_url": null,
+
+  "default_federate": false,
+  "force_verification": true,
+
+  "enable_presence_by_hs_url": {
+    "http://127.0.0.1:8008": false
+  },
+  "setting_defaults": {
+    "UIFeature.urlPreviews": false
+  }
 }
