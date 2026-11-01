@@ -122,7 +122,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
 
     info "Configuration Synapse générée."
 
-    # Configuration PostgreSQL avec PyYAML.
+    # Configuration PostgreSQL et souveraineté avec PyYAML.
     docker run --rm -i \
         -v "$DATA_DIR:/data" \
         -e SYNAPSE_DB_PASSWORD="$DB_PASSWORD" \
@@ -136,6 +136,7 @@ path = Path("/data/homeserver.yaml")
 
 config = yaml.safe_load(path.read_text())
 
+# --- PostgreSQL ---
 config["database"] = {
     "name": "psycopg2",
     "args": {
@@ -148,6 +149,25 @@ config["database"] = {
         "cp_max": 10,
     },
 }
+
+# --- Souveraineté : aucun contact vers des serveurs externes ---
+
+# Supprimer matrix.org des serveurs de clés de confiance.
+config["trusted_key_servers"] = []
+config["suppress_key_server_warning"] = True
+
+# Désactiver la fédération dans le listener HTTP.
+for listener in config.get("listeners", []):
+    for resource in listener.get("resources", []):
+        names = resource.get("names", [])
+        if "federation" in names:
+            names.remove("federation")
+
+# Les salons sont non-fédérés par défaut.
+config["default_federate"] = False
+
+# Bloquer la création de comptes : seul un admin peut créer des utilisateurs.
+config["enable_registration"] = False
 
 path.write_text(
     yaml.safe_dump(config, sort_keys=False, allow_unicode=True)
