@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#15191E">
+  <meta name="description" content="Configurer la double authentification sur votre compte Kibare.">
+  <title>Double authentification - Kibare</title>
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    .setup2fa-viewport {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    .setup2fa-card {
+      width: 100%;
+      max-width: 480px;
+      background: rgba(21, 25, 30, 0.82);
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      border-radius: 20px;
+      padding: 44px 40px 36px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .s2fa-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      background: rgba(13, 189, 139, 0.14);
+      border: 1px solid rgba(13, 189, 139, 0.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .s2fa-icon svg {
+      width: 32px;
+      height: 32px;
+      fill: #0dbd8b;
+    }
+
+    .s2fa-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #edf1f5;
+      margin: 0 0 10px;
+      text-align: center;
+      letter-spacing: -0.3px;
+    }
+
+    .s2fa-subtitle {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.55);
+      text-align: center;
+      line-height: 1.55;
+      margin: 0 0 28px;
+      max-width: 360px;
+    }
+
+    .s2fa-benefits {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .s2fa-benefit {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .s2fa-benefit-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(13, 189, 139, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .s2fa-benefit-icon svg {
+      width: 16px;
+      height: 16px;
+      fill: #0dbd8b;
+    }
+
+    .s2fa-benefit-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .s2fa-benefit-text strong {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.90);
+    }
+
+    .s2fa-benefit-text span {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.45);
+      line-height: 1.4;
+    }
+
+    .s2fa-actions {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .s2fa-btn-primary {
+      width: 100%;
+      height: 48px;
+      border-radius: 12px;
+      border: none;
+      background: #0dbd8b;
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s, transform 0.1s;
+      letter-spacing: -0.1px;
+    }
+
+    .s2fa-btn-primary:hover {
+      background: #09a77a;
+    }
+
+    .s2fa-btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    .s2fa-btn-primary svg {
+      width: 18px;
+      height: 18px;
+      fill: #ffffff;
+    }
+
+    .s2fa-btn-skip {
+      width: 100%;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: transparent;
+      color: rgba(255, 255, 255, 0.50);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .s2fa-btn-skip:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.80);
+      border-color: rgba(255, 255, 255, 0.20);
+    }
+
+    .s2fa-note {
+      margin-top: 20px;
+      font-size: 11.5px;
+      color: rgba(255, 255, 255, 0.30);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 520px) {
+      .setup2fa-card {
+        padding: 32px 20px 28px;
+        border-radius: 16px;
+      }
+    }
+  </style>
+</head>
+<body class="has-bg-photo">
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <a class="brand" href="/" aria-label="Kibare, accueil">
+        <span class="brand-mark" aria-hidden="true">K</span>
+        <span class="brand-title">Kibare</span>
+      </a>
+    </div>
+    <div class="topbar-right">
+      <a class="btn-secondary" href="http://127.0.0.1:8080" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+        <span>Messagerie</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="setup2fa-viewport">
+    <div class="setup2fa-card">
+
+      <div class="s2fa-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+      </div>
+
+      <h1 class="s2fa-title">Double authentification</h1>
+      <p class="s2fa-subtitle">Ajoutez une seconde couche de protection a votre compte. En cas de mot de passe compromis, votre compte reste inaccessible.</p>
+
+      <div class="s2fa-benefits">
+        <div class="s2fa-benefit">
+          <div class="s2fa-benefit-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+          </div>
+          <div class="s2fa-benefit-text">
+            <strong>Code temporaire a chaque connexion</strong>
+            <span>Votre application TOTP genere un code unique valable 30 secondes.</span>
+          </div>
+        </div>
+        <div class="s2fa-benefit">
+          <div class="s2fa-benefit-icon">
+            <svg viewBox="0 0 24 24"><path d="M17 1H7c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zm-5 20c-.83 0-1.5-.67-1.5-1.5S11.17 18 12 18s1.5.67 1.5 1.5S12.83 21 12 21zm5-4H7V4h10v13z"/></svg>
+          </div>
+          <div class="s2fa-benefit-text">
+            <strong>Compatible avec votre smartphone</strong>
+            <span>Fonctionne avec Google Authenticator, Aegis, FreeOTP ou tout autre client TOTP.</span>
+          </div>
+        </div>
+        <div class="s2fa-benefit">
+          <div class="s2fa-benefit-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+          </div>
+          <div class="s2fa-benefit-text">
+            <strong>Entierement local et prive</strong>
+            <span>Aucun serveur externe. Votre cle secrete reste sur vos appareils uniquement.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="s2fa-actions">
+        <a
+          class="s2fa-btn-primary"
+          href="http://127.0.0.1:8082/realms/kibare/account/#/security/signingin"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+          Configurer maintenant
+        </a>
+        <a class="s2fa-btn-skip" href="http://127.0.0.1:8080" target="_blank" rel="noopener noreferrer">
+          Plus tard, acces a la messagerie
+        </a>
+      </div>
+
+      <p class="s2fa-note">
+        La configuration se fait dans votre espace compte Kibare.<br>
+        Vous pouvez revenir sur cette page a tout moment depuis le portail.
+      </p>
+
+    </div>
+  </main>
+
+  <footer class="portal-footer">
+    <span>Kibare</span>
+    <span>kibare.test</span>
+  </footer>
+
+</body>
+</html>

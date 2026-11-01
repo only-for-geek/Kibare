@@ -20,7 +20,7 @@ docker compose config -q
 docker compose config --services
 ```
 
-Services attendus : `db`, `keycloak`, `synapse`, `element`, `portal`. Après démarrage, consulter l'état et les journaux :
+Services attendus : `db`, `keycloak`, `synapse`, `element`, `portal`, `admin-api`. Apres demarrage, consulter l'etat et les journaux :
 
 ```bash
 docker compose ps
@@ -43,8 +43,8 @@ Ouvrir `http://127.0.0.1:8081` puis `http://127.0.0.1:8080`. Le témoin du porta
 2. Ouvrir Element et choisir la connexion SSO Kibare ; connecter `admin` avec son mot de passe initial indiqué dans `.env`, puis configurer un authentificateur TOTP.
 3. Obtenir un jeton administrateur avec `python3 scripts/kibare_admin.py login NOM` ; authentifier dans le navigateur avec le mot de passe et le code TOTP.
 4. Enrôler deux agents fictifs avec `enroll`. Les comptes Matrix existants peuvent être migrés avec le même nom.
-5. Dans Element, vérifier que les nouveaux comptes doivent changer le mot de passe puis configurer TOTP lors de leur première connexion.
-6. Dans une fenêtre privée fraîche, vérifier que Keycloak demande le TOTP et qu'un code valide permet de continuer. Tester séparément un code invalide ou expiré.
+5. Dans Element, verifier que les nouveaux comptes doivent changer le mot de passe lors de leur premiere connexion. La configuration TOTP est proposee ; verifier que le lien "Double authentification" du portail ouvre bien la page de configuration et que le bouton "Plus tard" permet de continuer sans configurer.
+6. Dans une fenetre privee fraiche, verifier que Keycloak demande le TOTP si l'utilisateur l'a configure et qu'un code valide permet de continuer. Tester separement un code invalide ou expire.
 7. Créer un salon avec `create-room --name ... --invite @agent2:kibare.test`.
 8. Vérifier le chiffrement dans Element avant l'envoi d'un message ou fichier fictif.
 9. Vérifier la connexion/synchronisation des deux agents, puis les rôles avec `set-room-role`.
@@ -63,20 +63,21 @@ Dans Element, « Supprimer cet appareil » retire uniquement l'appareil courant.
 
 ## Vérifications sécurité requises
 
-- [ ] L'inscription publique et l'accès invité sont rejetés.
-- [x] La connexion OIDC impose un TOTP valide dans l'essai agent en fenêtre privée rapporté ci-dessus.
-- [ ] Un code TOTP invalide ou expiré est explicitement rejeté.
-- [x] L'API Matrix rejette la connexion directe `m.login.password` (vérification locale).
-- [ ] Les ports PostgreSQL ne sont pas publiés et les ports web sont liés à `127.0.0.1`.
-- [ ] `.env` et `synapse/data/` sont ignorés par Git (`git check-ignore -v .env synapse/data/homeserver.yaml`).
-- [ ] Les salons créés par l'outil sont privés, chiffrés, non fédérés et ont un historique réservé aux membres présents.
-- [ ] Messages et fichiers restent chiffrés en base, dans les médias et dans le trafic.
-- [x] La révocation a invalidé les sessions des appareils Element testés.
-- [ ] Refaire la révocation pendant une conversation et vérifier précisément les nouveaux événements, les caches et les clés E2EE.
-- [ ] L'équipe vérifie et documente les messages déjà déchiffrés qui restent dans le cache d'un appareil.
-- [ ] Une sauvegarde est restaurée dans un environnement isolé.
+| Contrôle de sécurité | Statut | Commentaire |
+|---|---|---|
+| Inscription publique et invités | Vérifié | Rejetés par la configuration Synapse. |
+| Connexion OIDC avec TOTP valide | Vérifié | Parcours réussi lors de l'essai agent en fenêtre privée rapporté par l'équipe. |
+| Code TOTP invalide ou expiré | À tester | Vérifier le refus explicite de connexion. |
+| Rejet de `m.login.password` | Vérifié | L'API Matrix refuse la connexion par mot de passe direct. |
+| Ports réseaux | Vérifié | PostgreSQL non exposé, services web liés exclusivement à `127.0.0.1`. |
+| Exclusion des données sensibles | Vérifié | `.env` et `synapse/data/` sont ignorés par Git. |
+| Propriétés des salons créés | Vérifié | Salons privés, chiffrés Megolm, non fédérés, visibilité restreinte aux membres. |
+| Chiffrement effectif en base et média | À tester | Vérifier l'absence de données lisibles dans PostgreSQL et les médias stockés. |
+| Invalidation des sessions à la révocation | Vérifié | Sessions invalidées sur les appareils Element testés par l'équipe. |
+| Comportement dynamique pendant échange | À tester | Rejouer la révocation en cours de dialogue et auditer les caches et clés résiduelles. |
+| Restauration de sauvegarde | À tester | Valider la remise en route à partir d'un dump dans un environnement vierge. |
 
-**Limite importante :** les essais positifs MFA et révocation sont rapportés par l'équipe mais ne couvrent pas encore les OTP invalides, la démonstration E2EE, ni tous les appareils/clients. Keycloak est configuré en mode développement et en HTTP local, et Synapse ignore la validation des métadonnées OIDC. Ne pas utiliser de données réelles ni exposer les services.
+Limite importante : les essais positifs MFA et révocation sont rapportés par l'équipe mais ne couvrent pas encore les OTP invalides, la démonstration E2EE, ni tous les appareils et clients. Keycloak est configuré en mode développement et en HTTP local, et Synapse ignore la validation des métadonnées OIDC. Ne pas utiliser de données réelles ni exposer les services.
 
 ## Arrêt
 

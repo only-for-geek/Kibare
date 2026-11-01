@@ -242,7 +242,7 @@ class IdentityProviderTests(unittest.TestCase):
         )
         self.assertEqual(result, {"ok": True})
 
-    def test_enrollment_sets_temporary_password_and_totp_requirement(self):
+    def test_enrollment_sets_temporary_password_without_mandatory_totp(self):
         client = KeycloakClient(
             "http://127.0.0.1:8082",
             "kcadmin",
@@ -262,10 +262,10 @@ class IdentityProviderTests(unittest.TestCase):
 
         self.assertEqual(user_id, "idp-user-id")
         create_payload = client._request.call_args_list[1].args[2]
-        self.assertEqual(create_payload["requiredActions"], ["CONFIGURE_TOTP"])
+        self.assertEqual(create_payload["requiredActions"], [])
         self.assertTrue(create_payload["credentials"][0]["temporary"])
 
-    def test_realm_template_requires_totp_and_disables_direct_password_grant(self):
+    def test_realm_template_enables_totp_as_optional_and_disables_direct_password_grant(self):
         import json
         from pathlib import Path
 
@@ -278,7 +278,7 @@ class IdentityProviderTests(unittest.TestCase):
             if action["alias"] == "CONFIGURE_TOTP"
         )
         self.assertTrue(configure_totp["enabled"])
-        self.assertTrue(configure_totp["defaultAction"])
+        self.assertFalse(configure_totp["defaultAction"])
         client = next(
             app for app in template["clients"]
             if app["clientId"] == "kibare-synapse"

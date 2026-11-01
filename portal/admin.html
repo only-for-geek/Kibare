@@ -1,0 +1,1834 @@
+<!doctype html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#15191E">
+  <meta name="description" content="Kibare : Espace d'administration des agents Matrix et gestion de la sécurité">
+  <title>Administration : Kibare</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230DBD8B'/><path d='M9 8h4.5v6.5L19 8h5.5l-6.5 7.5L25 24h-5.5l-6-7.5V24H9V8z' fill='%23ffffff'/></svg>">
+  <style>
+    /* Console administration Kibare */
+
+    :root, [data-theme="dark"] {
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+      /* Palette Element Web (Dark Charcoal / Compound) */
+      --cpd-bg-canvas: #15191E;
+      --cpd-bg-subtle: #181D23;
+      --cpd-bg-surface: #21262C;
+      --cpd-bg-surface-hover: #282F37;
+      --cpd-bg-surface-active: #2F3742;
+      --cpd-bg-surface-elevated: #282F37;
+
+      --cpd-border-subtle: #262B33;
+      --cpd-border-default: #2E3642;
+      --cpd-border-strong: #3D4756;
+
+      --cpd-text-primary: #F2F5F8;
+      --cpd-text-secondary: #91A1C0;
+      --cpd-text-tertiary: #61708B;
+      --cpd-text-disabled: #4B5565;
+
+      /* Accent Matrix Green */
+      --cpd-accent: #0DBD8B;
+      --cpd-accent-hover: #09A377;
+      --cpd-accent-active: #077A59;
+      --cpd-accent-subtle: rgba(13, 189, 139, 0.15);
+      --cpd-accent-border: rgba(13, 189, 139, 0.35);
+
+      /* Statuts & alertes */
+      --cpd-success: #0DBD8B;
+      --cpd-success-bg: rgba(13, 189, 139, 0.15);
+      --cpd-success-border: rgba(13, 189, 139, 0.3);
+
+      --cpd-warning: #FF8D13;
+      --cpd-warning-bg: rgba(255, 141, 19, 0.15);
+      --cpd-warning-border: rgba(255, 141, 19, 0.3);
+
+      --cpd-danger: #FF4C55;
+      --cpd-danger-hover: #FF333E;
+      --cpd-danger-bg: rgba(255, 76, 85, 0.15);
+      --cpd-danger-border: rgba(255, 76, 85, 0.3);
+
+      --cpd-info: #5C56F5;
+      --cpd-info-bg: rgba(92, 86, 245, 0.15);
+      --cpd-info-border: rgba(92, 86, 245, 0.3);
+
+      --cpd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --cpd-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);
+      --cpd-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+      --cpd-backdrop: rgba(10, 13, 16, 0.75);
+    }
+
+    [data-theme="light"] {
+      --cpd-bg-canvas: #F4F6FA;
+      --cpd-bg-subtle: #FFFFFF;
+      --cpd-bg-surface: #FFFFFF;
+      --cpd-bg-surface-hover: #F8FAFC;
+      --cpd-bg-surface-active: #EEF2F6;
+      --cpd-bg-surface-elevated: #FFFFFF;
+
+      --cpd-border-subtle: #EEF1F5;
+      --cpd-border-default: #E3E8ED;
+      --cpd-border-strong: #C8D1DC;
+
+      --cpd-text-primary: #17191C;
+      --cpd-text-secondary: #61708B;
+      --cpd-text-tertiary: #9FA9BA;
+      --cpd-text-disabled: #CBD5E1;
+
+      --cpd-accent: #0DBD8B;
+      --cpd-accent-hover: #09A377;
+      --cpd-accent-active: #077A59;
+      --cpd-accent-subtle: rgba(13, 189, 139, 0.12);
+      --cpd-accent-border: rgba(13, 189, 139, 0.3);
+
+      --cpd-success: #0DBD8B;
+      --cpd-success-bg: #E7F7F2;
+      --cpd-success-border: #A3E4D1;
+
+      --cpd-warning: #B35E00;
+      --cpd-warning-bg: #FFF4E5;
+      --cpd-warning-border: #FFD699;
+
+      --cpd-danger: #D92D35;
+      --cpd-danger-hover: #BA1C23;
+      --cpd-danger-bg: #FEECEB;
+      --cpd-danger-border: #FCA5A5;
+
+      --cpd-info: #4F46E5;
+      --cpd-info-bg: #EEF2FF;
+      --cpd-info-border: #C7D2FE;
+
+      --cpd-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+      --cpd-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --cpd-shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.12);
+      --cpd-backdrop: rgba(15, 23, 42, 0.5);
+    }
+
+    /* Règle critique pour garantir que [hidden] masque toujours l'élément */
+    [hidden] {
+      display: none !important;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--cpd-bg-canvas);
+      color: var(--cpd-text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Mise en page globale (Sidebar + Main) */
+    .app-layout {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Barre latérale (Sidebar Element) */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: var(--cpd-bg-subtle);
+      border-right: 1px solid var(--cpd-border-default);
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      z-index: 10;
+    }
+
+    .sidebar-header {
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--cpd-border-subtle);
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--cpd-accent);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 17px;
+      box-shadow: 0 2px 8px rgba(13, 189, 139, 0.4);
+      flex-shrink: 0;
+    }
+
+    .brand-info {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      color: var(--cpd-text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--cpd-text-secondary);
+      margin-top: 2px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--cpd-text-tertiary);
+      padding: 8px 10px 4px;
+      margin-top: 8px;
+    }
+
+    .nav-section-title:first-child {
+      margin-top: 0;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      color: var(--cpd-text-secondary);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .nav-item:hover {
+      background: var(--cpd-bg-surface-hover);
+      color: var(--cpd-text-primary);
+    }
+
+    .nav-item.active {
+      background: var(--cpd-accent-subtle);
+      color: var(--cpd-accent);
+      font-weight: 600;
+      border-color: var(--cpd-accent-border);
+    }
+
+    .nav-item svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      fill: currentColor;
+    }
+
+    .nav-item-count {
+      margin-left: auto;
+      font-size: 11px;
+      padding: 1px 7px;
+      border-radius: 10px;
+      background: var(--cpd-bg-surface);
+      color: var(--cpd-text-secondary);
+      font-weight: 600;
+    }
+
+    .nav-item.active .nav-item-count {
+      background: var(--cpd-accent);
+      color: #ffffff;
+    }
+
+    /* Pied de la barre latérale */
+    .sidebar-footer {
+      padding: 14px 16px;
+      border-top: 1px solid var(--cpd-border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--cpd-bg-subtle);
+    }
+
+    .user-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0DBD8B 0%, #077A59 100%);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .user-info {
+      flex: 1;
+      min-width: 0;
+      line-height: 1.3;
+    }
+
+    .user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--cpd-text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-status {
+      font-size: 11px;
+      color: var(--cpd-text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--cpd-border-default);
+      background: var(--cpd-bg-surface);
+      color: var(--cpd-text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .btn-icon:hover {
+      background: var(--cpd-bg-surface-hover);
+      color: var(--cpd-text-primary);
+      border-color: var(--cpd-border-strong);
+    }
+
+    .btn-icon svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    /* Contenu principal */
+    .main-viewport {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--cpd-bg-canvas);
+    }
+
+    /* Topbar principale */
+    .topbar {
+      height: 60px;
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--cpd-border-default);
+      background: var(--cpd-bg-subtle);
+      gap: 16px;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .page-heading {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--cpd-text-primary);
+      letter-spacing: -0.2px;
+    }
+
+    .search-box {
+      position: relative;
+      width: 280px;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 36px;
+      padding: 0 12px 0 34px;
+      border-radius: 8px;
+      border: 1px solid var(--cpd-border-default);
+      background: var(--cpd-bg-surface);
+      color: var(--cpd-text-primary);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .search-input:focus {
+      border-color: var(--cpd-accent);
+      box-shadow: 0 0 0 2px var(--cpd-accent-subtle);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 15px;
+      height: 15px;
+      color: var(--cpd-text-tertiary);
+      pointer-events: none;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-primary {
+      height: 36px;
+      padding: 0 16px;
+      border-radius: 8px;
+      border: none;
+      background: var(--cpd-accent);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 6px rgba(13, 189, 139, 0.35);
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-primary:hover {
+      background: var(--cpd-accent-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      background: var(--cpd-accent-active);
+      transform: none;
+    }
+
+    .btn-primary svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    /* Zone de contenu avec scroll */
+    .content-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Conteneur du tableau des agents */
+    .card-panel {
+      background: var(--cpd-bg-surface);
+      border: 1px solid var(--cpd-border-default);
+      border-radius: 12px;
+      box-shadow: var(--cpd-shadow-sm);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-panel-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--cpd-border-subtle);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--cpd-text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-subtitle {
+      font-size: 12px;
+      color: var(--cpd-text-secondary);
+      margin-top: 2px;
+    }
+
+    .panel-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 4px;
+      background: var(--cpd-bg-canvas);
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid var(--cpd-border-subtle);
+    }
+
+    .filter-btn {
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--cpd-text-secondary);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .filter-btn:hover {
+      color: var(--cpd-text-primary);
+    }
+
+    .filter-btn.active {
+      background: var(--cpd-bg-surface);
+      color: var(--cpd-text-primary);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-secondary {
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 6px;
+      border: 1px solid var(--cpd-border-default);
+      background: var(--cpd-bg-surface);
+      color: var(--cpd-text-primary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-secondary:hover {
+      background: var(--cpd-bg-surface-hover);
+      border-color: var(--cpd-border-strong);
+    }
+
+    .btn-secondary svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    /* Tableau élégant (Element Style) */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .element-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    .element-table th {
+      padding: 12px 18px;
+      background: var(--cpd-bg-subtle);
+      color: var(--cpd-text-secondary);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      border-bottom: 1px solid var(--cpd-border-default);
+      user-select: none;
+    }
+
+    .element-table td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--cpd-border-subtle);
+      color: var(--cpd-text-primary);
+      vertical-align: middle;
+    }
+
+    .element-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .element-table tr:hover td {
+      background: var(--cpd-bg-surface-hover);
+    }
+
+    /* Cellule Agent (Avatar + Nom + ID) */
+    .agent-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .agent-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      color: #ffffff;
+      flex-shrink: 0;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    .agent-meta {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.3;
+    }
+
+    .agent-name {
+      font-weight: 600;
+      color: var(--cpd-text-primary);
+    }
+
+    .agent-handle {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--cpd-text-tertiary);
+    }
+
+    /* Statuts & Rôles en texte simple (sans capsule ni puce) */
+    .text-admin {
+      font-weight: 600;
+      color: var(--cpd-text-primary);
+    }
+
+    .text-agent {
+      color: var(--cpd-text-secondary);
+    }
+
+    .text-active {
+      color: var(--cpd-accent);
+      font-weight: 500;
+    }
+
+    .text-revoked {
+      color: var(--cpd-text-tertiary);
+    }
+
+    .text-totp-active {
+      color: var(--cpd-accent);
+      font-weight: 500;
+    }
+
+    .text-totp-required {
+      color: var(--cpd-warning);
+      font-weight: 500;
+    }
+
+    .text-totp-optional {
+      color: var(--cpd-text-secondary);
+    }
+
+    /* Actions de table */
+    .table-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-table-action {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid var(--cpd-border-default);
+      background: var(--cpd-bg-surface);
+      color: var(--cpd-text-primary);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .btn-table-action:hover {
+      background: var(--cpd-bg-surface-hover);
+      border-color: var(--cpd-border-strong);
+    }
+
+    .btn-table-revoke {
+      color: var(--cpd-danger);
+      background: var(--cpd-danger-bg);
+      border-color: var(--cpd-danger-border);
+    }
+
+    .btn-table-revoke:hover {
+      background: var(--cpd-danger);
+      color: #ffffff;
+      border-color: var(--cpd-danger);
+    }
+
+    .btn-table-revoke:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    /* Pagination */
+    .table-pagination {
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--cpd-border-subtle);
+      background: var(--cpd-bg-subtle);
+      font-size: 12px;
+      color: var(--cpd-text-secondary);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pagination-info {
+      font-weight: 500;
+    }
+
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-page {
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--cpd-border-default);
+      background: var(--cpd-bg-surface);
+      color: var(--cpd-text-primary);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-page:hover:not(:disabled) {
+      background: var(--cpd-bg-surface-hover);
+      border-color: var(--cpd-border-strong);
+    }
+
+    .btn-page:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .pagination-numbers {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .page-num {
+      min-width: 28px;
+      height: 28px;
+      padding: 0 6px;
+      border-radius: 6px;
+      border: 1px solid var(--cpd-border-default);
+      background: var(--cpd-bg-surface);
+      color: var(--cpd-text-primary);
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .page-num:hover:not(.active) {
+      background: var(--cpd-bg-surface-hover);
+    }
+
+    .page-num.active {
+      background: var(--cpd-accent);
+      color: #ffffff;
+      border-color: var(--cpd-accent);
+    }
+
+    /* État de chargement & État vide (CORRIGÉ SANS BOUCLE) */
+    .state-box {
+      padding: 48px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--cpd-text-secondary);
+      text-align: center;
+    }
+
+    .spinner-element {
+      width: 28px;
+      height: 28px;
+      border: 3px solid var(--cpd-border-default);
+      border-top-color: var(--cpd-accent);
+      border-radius: 50%;
+      animation: spin 0.75s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .empty-icon {
+      width: 48px;
+      height: 48px;
+      color: var(--cpd-text-tertiary);
+      opacity: 0.5;
+    }
+
+    .state-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--cpd-text-primary);
+    }
+
+    .state-desc {
+      font-size: 12px;
+      color: var(--cpd-text-tertiary);
+      max-width: 360px;
+    }
+
+    /* Modales / Boîtes de dialogue (Element Style) */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--cpd-backdrop);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-dialog {
+      width: 100%;
+      max-width: 480px;
+      background: var(--cpd-bg-surface);
+      border: 1px solid var(--cpd-border-default);
+      border-radius: 14px;
+      box-shadow: var(--cpd-shadow-lg);
+      transform: scale(0.96) translateY(8px);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-overlay.open .modal-dialog {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-header {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--cpd-border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--cpd-text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .modal-close {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--cpd-text-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .modal-close:hover {
+      background: var(--cpd-bg-surface-hover);
+      color: var(--cpd-text-primary);
+    }
+
+    .modal-body {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--cpd-text-primary);
+    }
+
+    .form-input {
+      height: 38px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid var(--cpd-border-default);
+      background: var(--cpd-bg-canvas);
+      color: var(--cpd-text-primary);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .form-input:focus {
+      border-color: var(--cpd-accent);
+      box-shadow: 0 0 0 2px var(--cpd-accent-subtle);
+    }
+
+    .form-hint {
+      font-size: 11px;
+      color: var(--cpd-text-tertiary);
+    }
+
+    .pwd-input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .pwd-input-group .form-input {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .btn-pwd-gen {
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid var(--cpd-border-default);
+      background: var(--cpd-bg-surface-hover);
+      color: var(--cpd-text-primary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+
+    .btn-pwd-gen:hover {
+      background: var(--cpd-bg-surface-active);
+    }
+
+    /* Boîte de mot de passe généré */
+    .pwd-copied-box {
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--cpd-bg-canvas);
+      border: 1px dashed var(--cpd-accent-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .pwd-copied-box:hover {
+      background: var(--cpd-bg-surface-hover);
+    }
+
+    .pwd-copied-text {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--cpd-accent);
+      word-break: break-all;
+    }
+
+    /* Checkbox stylée */
+    .checkbox-card {
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: var(--cpd-bg-canvas);
+      border: 1px solid var(--cpd-border-default);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .checkbox-card:hover {
+      border-color: var(--cpd-border-strong);
+    }
+
+    .checkbox-card input[type="checkbox"] {
+      margin-top: 3px;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--cpd-accent);
+      cursor: pointer;
+    }
+
+    .checkbox-label-group {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.3;
+    }
+
+    .checkbox-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--cpd-text-primary);
+    }
+
+    .checkbox-desc {
+      font-size: 11px;
+      color: var(--cpd-text-secondary);
+      margin-top: 2px;
+    }
+
+    .modal-footer {
+      padding: 14px 22px;
+      border-top: 1px solid var(--cpd-border-subtle);
+      background: var(--cpd-bg-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* Notifications Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 200;
+      pointer-events: none;
+    }
+
+    .toast {
+      min-width: 280px;
+      max-width: 420px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      background: var(--cpd-bg-surface-elevated);
+      border: 1px solid var(--cpd-border-strong);
+      box-shadow: var(--cpd-shadow-lg);
+      color: var(--cpd-text-primary);
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      pointer-events: auto;
+      transform: translateY(16px);
+      opacity: 0;
+      animation: toastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes toastIn {
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .toast-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .toast-ok { border-color: var(--cpd-accent); }
+    .toast-ok .toast-icon { color: var(--cpd-accent); }
+
+    .toast-err { border-color: var(--cpd-danger); }
+    .toast-err .toast-icon { color: var(--cpd-danger); }
+  </style>
+</head>
+<body>
+
+  <div class="app-layout">
+
+    <!-- Barre latérale (Sidebar Element) -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-mark">K</div>
+        <div class="brand-info">
+          <span class="brand-title">Kibare Admin</span>
+          <span class="brand-subtitle">Console de gestion</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <span class="nav-section-title">Gestion</span>
+        <a class="nav-item active" id="nav-agents" href="#agents">
+          <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+          <span>Agents</span>
+          <span class="nav-item-count" id="sidebar-count">0</span>
+        </a>
+
+        <a class="nav-item" id="nav-open-enroll" href="#enroll" role="button">
+          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          <span>Enrôler un agent</span>
+        </a>
+
+        <span class="nav-section-title">Applications</span>
+        <a class="nav-item" href="http://127.0.0.1:8080" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+          <span>Ouvrir Element Web</span>
+          <svg style="width: 13px; height: 13px; margin-left: auto;" viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+        </a>
+
+        <a class="nav-item" href="/">
+          <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+          <span>Accueil du portail</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-avatar" id="current-user-avatar">AD</div>
+        <div class="user-info">
+          <div class="user-name">Administrateur</div>
+          <div class="user-status">@admin</div>
+        </div>
+        <button class="btn-icon" id="theme-toggle" title="Basculer le thème (Sombre / Clair)" aria-label="Basculer le thème">
+          <svg id="theme-icon" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Contenu principal -->
+    <main class="main-viewport">
+
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-heading">Gestion des agents</h1>
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="agent-search" class="search-input" placeholder="Filtrer par nom ou identifiant…" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="topbar-right"></div>
+      </header>
+
+      <!-- Scroll container -->
+      <div class="content-scroll">
+
+
+
+        <!-- Tableau des agents -->
+        <section class="card-panel" id="section-agents">
+          <div class="card-panel-header">
+            <div class="panel-title-group">
+              <h2 class="panel-title">Annuaire des agents</h2>
+            </div>
+
+            <div class="panel-actions">
+              <div class="filter-pills" role="tablist">
+                <button class="filter-btn active" data-filter="all">Tous</button>
+                <button class="filter-btn" data-filter="active">Actifs</button>
+                <button class="filter-btn" data-filter="admin">Admins</button>
+                <button class="filter-btn" data-filter="totp">2FA Requis / Actif</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Spinner de chargement (MASQUÉ PROPREMENT DÈS CHARGEMENT) -->
+          <div id="table-loading" class="state-box">
+            <div class="spinner-element"></div>
+            <span class="state-title">Chargement des comptes…</span>
+            <span class="state-desc">Synchronisation avec Synapse et Keycloak en cours.</span>
+          </div>
+
+          <!-- État vide -->
+          <div id="table-empty" class="state-box" hidden>
+            <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            <span class="state-title">Aucun agent trouvé</span>
+            <span class="state-desc" id="empty-desc">Aucun compte ne correspond à votre filtre de recherche.</span>
+          </div>
+
+          <!-- Tableau -->
+          <div class="table-container" id="table-wrap" hidden>
+            <table class="element-table" aria-label="Liste des comptes agents Kibare">
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th>Identifiant Matrix</th>
+                  <th>Rôle</th>
+                  <th>Statut</th>
+                  <th>Double Authentification (2FA)</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="table-tbody"></tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="table-pagination" id="table-pagination" hidden>
+            <span class="pagination-info" id="pagination-info"></span>
+            <div class="pagination-controls">
+              <button type="button" class="btn-page" id="btn-page-prev">← Précédent</button>
+              <div class="pagination-numbers" id="pagination-numbers"></div>
+              <button type="button" class="btn-page" id="btn-page-next">Suivant →</button>
+            </div>
+          </div>
+        </section>
+
+
+
+      </div>
+    </main>
+  </div>
+
+  <!-- MODALE : Enrôler un agent -->
+  <div class="modal-overlay" id="modal-enroll">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-enroll-title">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-enroll-title">
+          <svg style="width: 20px; height: 20px; fill: var(--cpd-accent);" viewBox="0 0 24 24"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          Enrôler un agent
+        </h3>
+        <button class="modal-close" id="modal-enroll-close" aria-label="Fermer la boîte de dialogue">&times;</button>
+      </div>
+
+      <form id="form-enroll">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="input-username">Identifiant de connexion</label>
+            <input type="text" id="input-username" class="form-input" placeholder="ex. a.kabore" autocomplete="off" required>
+            <span class="form-hint">Lettres minuscules, chiffres, point, tiret. Résultat : <strong id="username-preview" style="color: var(--cpd-accent);">@...:kibare.test</strong></span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-displayname">Nom complet</label>
+            <input type="text" id="input-displayname" class="form-input" placeholder="ex. Adama Kaboré" autocomplete="off" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="input-password">Mot de passe temporaire</label>
+            <div class="pwd-input-group">
+              <input type="text" id="input-password" class="form-input" placeholder="Min. 14 caractères" minlength="14" autocomplete="new-password" required>
+              <button type="button" class="btn-pwd-gen" id="btn-generate-pwd">
+                <svg style="width: 14px; height: 14px; fill: currentColor;" viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+                Générer
+              </button>
+            </div>
+            <div id="pwd-copy-box" class="pwd-copied-box" hidden title="Cliquer pour copier">
+              <span class="pwd-copied-text" id="pwd-copy-val"></span>
+              <span style="font-size: 11px; color: var(--cpd-text-tertiary);" id="pwd-copy-status">Cliquer pour copier</span>
+            </div>
+            <span class="form-hint">L'agent sera invité à modifier ce mot de passe à sa première connexion.</span>
+          </div>
+
+          <div class="checkbox-card" id="card-totp-toggle">
+            <input type="checkbox" id="input-require-totp">
+            <div class="checkbox-label-group">
+              <span class="checkbox-title">Exiger la double authentification (2FA / TOTP)</span>
+              <span class="checkbox-desc">Si coché, l'agent devra obligatoirement scanner un QR code TOTP à sa première connexion. Si décoché (recommandé), le 2FA reste optionnel.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" id="btn-cancel-enroll">Annuler</button>
+          <button type="submit" class="btn-primary" id="btn-submit-enroll">
+            <span>Enrôler l'agent</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODALE : Confirmation de révocation -->
+  <div class="modal-overlay" id="modal-revoke">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-revoke-title">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-revoke-title" style="color: var(--cpd-danger);">
+          <svg style="width: 20px; height: 20px; fill: var(--cpd-danger);" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          Révoquer le compte
+        </h3>
+        <button class="modal-close" id="modal-revoke-close" aria-label="Fermer">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--cpd-text-primary);">
+          Êtes-vous certain de vouloir révoquer l'accès pour l'agent <strong id="revoke-target-name" style="color: var(--cpd-text-primary);"></strong> (<span id="revoke-target-user" style="font-family: var(--font-mono); color: var(--cpd-danger);"></span>) ?
+        </p>
+        <p style="font-size: 12px; color: var(--cpd-text-secondary); line-height: 1.4;">
+          Cette action désactivera immédiatement le compte dans Matrix Synapse, fermera toutes les sessions Element Web actives de l'agent et désactivera son identité Keycloak.
+        </p>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="btn-cancel-revoke">Annuler</button>
+        <button type="button" class="btn-primary" id="btn-confirm-revoke" style="background: var(--cpd-danger); box-shadow: 0 2px 6px rgba(255, 76, 85, 0.4);">
+          <span>Confirmer la révocation</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conteneur des notifications Toast -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- LOGIQUE JAVASCRIPT (VANILLA, ZÉRO DÉPENDANCE) -->
+  <script>
+    "use strict";
+
+    const API = "/api";
+    let allUsers = [];
+    let currentFilter = "all";
+    let pendingRevokeUser = null;
+
+    // Palette de couleurs pour les avatars façon Element
+    const AVATAR_COLORS = [
+      "#0DBD8B", "#5C56F5", "#DF2A8B", "#FF8D13",
+      "#368BD6", "#E35A5A", "#2E9F85", "#8E44AD"
+    ];
+
+    function getAvatarColor(name) {
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+    }
+
+    function getInitials(name) {
+      if (!name) return "??";
+      const parts = name.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      }
+      return name.slice(0, 2).toUpperCase();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Notifications Toast
+    function showToast(message, type = "ok") {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      toast.className = `toast toast-${type}`;
+
+      const iconSvg = type === "ok"
+        ? '<svg class="toast-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>'
+        : '<svg class="toast-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
+
+      toast.innerHTML = `${iconSvg}<span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(10px)";
+        toast.style.transition = "opacity 0.2s, transform 0.2s";
+        setTimeout(() => toast.remove(), 200);
+      }, 4000);
+    }
+
+    // Appels API
+    async function apiCall(method, path, body) {
+      const opts = {
+        method,
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        cache: "no-store",
+      };
+      if (body !== undefined) opts.body = JSON.stringify(body);
+      const resp = await fetch(API + path, opts);
+      const data = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+      if (!resp.ok) throw new Error(data.error || `Erreur HTTP ${resp.status}`);
+      return data;
+    }
+
+    // Gestion du Thème (Dark / Light)
+    const themeToggleBtn = document.getElementById("theme-toggle");
+    const htmlEl = document.documentElement;
+
+    function applyTheme(theme) {
+      htmlEl.setAttribute("data-theme", theme);
+      localStorage.setItem("kibare_theme", theme);
+    }
+
+    const savedTheme = localStorage.getItem("kibare_theme") || "dark";
+    applyTheme(savedTheme);
+
+    themeToggleBtn.addEventListener("click", () => {
+      const current = htmlEl.getAttribute("data-theme");
+      applyTheme(current === "dark" ? "light" : "dark");
+    });
+
+    // Chargement & Affichage des agents avec Pagination
+    let currentPage = 1;
+    const PAGE_SIZE = 10;
+
+    const tableLoading    = document.getElementById("table-loading");
+    const tableEmpty      = document.getElementById("table-empty");
+    const tableWrap       = document.getElementById("table-wrap");
+    const tableTbody      = document.getElementById("table-tbody");
+    const sidebarCount    = document.getElementById("sidebar-count");
+    const tablePagination = document.getElementById("table-pagination");
+    const paginationInfo  = document.getElementById("pagination-info");
+    const paginationNumbers = document.getElementById("pagination-numbers");
+    const btnPagePrev     = document.getElementById("btn-page-prev");
+    const btnPageNext     = document.getElementById("btn-page-next");
+
+    async function loadAgents() {
+      // Afficher le chargement, masquer la table et l'état vide
+      tableLoading.hidden = false;
+      tableWrap.hidden = true;
+      tableEmpty.hidden = true;
+      if (tablePagination) tablePagination.hidden = true;
+
+      try {
+        const data = await apiCall("GET", "/users");
+        allUsers = data.users || [];
+        renderAgents();
+      } catch (err) {
+        tableLoading.hidden = true;
+        tableEmpty.hidden = false;
+        if (tablePagination) tablePagination.hidden = true;
+        document.getElementById("empty-desc").textContent = `Erreur de connexion : ${err.message}`;
+        showToast(`Impossible de charger les agents : ${err.message}`, "err");
+      }
+    }
+
+    function renderAgents() {
+      // Masquer définitivement le loader
+      tableLoading.hidden = true;
+
+      // Mise à jour du compteur dans la barre latérale
+      sidebarCount.textContent = allUsers.length;
+
+      // Filtrage
+      const searchVal = document.getElementById("agent-search").value.trim().toLowerCase();
+      const filtered = allUsers.filter(u => {
+        if (searchVal) {
+          const matchName = (u.displayname || "").toLowerCase().includes(searchVal);
+          const matchUser = (u.username || "").toLowerCase().includes(searchVal);
+          if (!matchName && !matchUser) return false;
+        }
+        if (currentFilter === "active") return !u.deactivated;
+        if (currentFilter === "admin") return u.admin;
+        if (currentFilter === "totp") return u.has_totp || u.totp_required;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        tableWrap.hidden = true;
+        tableEmpty.hidden = false;
+        if (tablePagination) tablePagination.hidden = true;
+        document.getElementById("empty-desc").textContent = searchVal
+          ? `Aucun agent ne correspond à « ${searchVal} ».`
+          : "Aucun agent dans cette catégorie.";
+        return;
+      }
+
+      tableEmpty.hidden = true;
+      tableWrap.hidden = false;
+      tableTbody.innerHTML = "";
+
+      // Calcul pagination
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (currentPage > totalPages) currentPage = totalPages;
+      if (currentPage < 1) currentPage = 1;
+
+      const startIdx = (currentPage - 1) * PAGE_SIZE;
+      const endIdx = Math.min(startIdx + PAGE_SIZE, filtered.length);
+      const pageUsers = filtered.slice(startIdx, endIdx);
+
+      for (const u of pageUsers) {
+        const tr = document.createElement("tr");
+
+        // Cellule Agent (Avatar + Nom + Identifiant)
+        const tdAgent = document.createElement("td");
+        const avatarBg = getAvatarColor(u.displayname || u.username);
+        const initials = getInitials(u.displayname || u.username);
+
+        tdAgent.innerHTML = `
+          <div class="agent-cell">
+            <div class="agent-avatar" style="background: ${avatarBg};">${escapeHtml(initials)}</div>
+            <div class="agent-meta">
+              <span class="agent-name">${escapeHtml(u.displayname || u.username)}</span>
+              <span class="agent-handle">${escapeHtml(u.user_id)}</span>
+            </div>
+          </div>
+        `;
+        tr.appendChild(tdAgent);
+
+        // Identifiant simple
+        const tdId = document.createElement("td");
+        tdId.innerHTML = `<code style="font-family: var(--font-mono); font-size: 12px; color: var(--cpd-text-secondary);">@${escapeHtml(u.username)}</code>`;
+        tr.appendChild(tdId);
+
+        // Rôle (texte simple sans puce ni capsule)
+        const tdRole = document.createElement("td");
+        tdRole.className = u.admin ? "text-admin" : "text-agent";
+        tdRole.textContent = u.admin ? "Administrateur" : "Agent";
+        tr.appendChild(tdRole);
+
+        // Statut (texte simple sans puce ni capsule)
+        const tdStatus = document.createElement("td");
+        tdStatus.className = u.deactivated ? "text-revoked" : "text-active";
+        tdStatus.textContent = u.deactivated ? "Révoqué" : "Actif";
+        tr.appendChild(tdStatus);
+
+        // Double Authentification (2FA) (texte simple avec action)
+        const tdTotp = document.createElement("td");
+        const totpWrap = document.createElement("div");
+        totpWrap.style.display = "flex";
+        totpWrap.style.alignItems = "center";
+        totpWrap.style.gap = "8px";
+
+        if (u.has_totp) {
+          totpWrap.innerHTML = '<span class="text-totp-active">2FA Actif</span>';
+        } else if (u.totp_required) {
+          totpWrap.innerHTML = `
+            <span class="text-totp-required">Requis</span>
+            <button class="btn-table-action" onclick="toggleTotp('${escapeHtml(u.username)}', false)">Rendre optionnel</button>
+          `;
+        } else {
+          totpWrap.innerHTML = `
+            <span class="text-totp-optional">Optionnel</span>
+            <button class="btn-table-action" onclick="toggleTotp('${escapeHtml(u.username)}', true)">Exiger 2FA</button>
+          `;
+        }
+        tdTotp.appendChild(totpWrap);
+        tr.appendChild(tdTotp);
+
+        // Action (Révocation)
+        const tdAction = document.createElement("td");
+        tdAction.style.textAlign = "right";
+
+        if (u.admin || u.username === "admin") {
+          tdAction.innerHTML = '<span style="font-size: 11px; color: var(--cpd-text-tertiary);">Protégé</span>';
+        } else if (u.deactivated) {
+          tdAction.innerHTML = '<span style="font-size: 11px; color: var(--cpd-text-tertiary);">Désactivé</span>';
+        } else {
+          const btnRevoke = document.createElement("button");
+          btnRevoke.className = "btn-table-action btn-table-revoke";
+          btnRevoke.textContent = "Révoquer";
+          btnRevoke.addEventListener("click", () => openRevokeModal(u));
+          tdAction.appendChild(btnRevoke);
+        }
+        tr.appendChild(tdAction);
+
+        tableTbody.appendChild(tr);
+      }
+
+      // Mise à jour de la barre de pagination
+      if (tablePagination) {
+        tablePagination.hidden = false;
+        paginationInfo.textContent = `Affichage de ${startIdx + 1} à ${endIdx} sur ${filtered.length} agent${filtered.length > 1 ? "s" : ""}`;
+        btnPagePrev.disabled = (currentPage <= 1);
+        btnPageNext.disabled = (currentPage >= totalPages);
+
+        paginationNumbers.innerHTML = "";
+        for (let p = 1; p <= totalPages; p++) {
+          const pageBtn = document.createElement("button");
+          pageBtn.type = "button";
+          pageBtn.className = `page-num ${p === currentPage ? "active" : ""}`;
+          pageBtn.textContent = p;
+          pageBtn.title = `Page ${p}`;
+          pageBtn.addEventListener("click", () => {
+            if (currentPage !== p) {
+              currentPage = p;
+              renderAgents();
+            }
+          });
+          paginationNumbers.appendChild(pageBtn);
+        }
+      }
+    }
+
+    // Contrôles de pagination Suivant / Précédent
+    btnPagePrev.addEventListener("click", () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderAgents();
+      }
+    });
+
+    btnPageNext.addEventListener("click", () => {
+      const searchVal = document.getElementById("agent-search").value.trim().toLowerCase();
+      const filtered = allUsers.filter(u => {
+        if (searchVal) {
+          const matchName = (u.displayname || "").toLowerCase().includes(searchVal);
+          const matchUser = (u.username || "").toLowerCase().includes(searchVal);
+          if (!matchName && !matchUser) return false;
+        }
+        if (currentFilter === "active") return !u.deactivated;
+        if (currentFilter === "admin") return u.admin;
+        if (currentFilter === "totp") return u.has_totp || u.totp_required;
+        return true;
+      });
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderAgents();
+      }
+    });
+
+    // Basculer le 2FA (TOTP) pour un compte
+    window.toggleTotp = async function(username, requireTotp) {
+      try {
+        const res = await apiCall("POST", "/toggle-totp", {
+          username,
+          require_totp: requireTotp,
+        });
+        showToast(res.message, "ok");
+        await loadAgents();
+      } catch (err) {
+        showToast(`Erreur : ${err.message}`, "err");
+      }
+    };
+
+    // Filtres et recherche
+    document.querySelectorAll(".filter-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentFilter = btn.dataset.filter;
+        currentPage = 1;
+        renderAgents();
+      });
+    });
+
+    document.getElementById("agent-search").addEventListener("input", () => {
+      currentPage = 1;
+      renderAgents();
+    });
+
+    // Génération de mot de passe fort
+    function generateStrongPassword(len = 20) {
+      const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#%&-_=+!";
+      const arr = new Uint8Array(len);
+      crypto.getRandomValues(arr);
+      return Array.from(arr, b => chars[b % chars.length]).join("");
+    }
+
+    const btnGeneratePwd = document.getElementById("btn-generate-pwd");
+    const inputPassword   = document.getElementById("input-password");
+    const pwdCopyBox      = document.getElementById("pwd-copy-box");
+    const pwdCopyVal      = document.getElementById("pwd-copy-val");
+    const pwdCopyStatus   = document.getElementById("pwd-copy-status");
+
+    btnGeneratePwd.addEventListener("click", () => {
+      const pwd = generateStrongPassword();
+      inputPassword.value = pwd;
+      pwdCopyVal.textContent = pwd;
+      pwdCopyBox.hidden = false;
+      pwdCopyStatus.textContent = "Cliquer pour copier";
+    });
+
+    pwdCopyBox.addEventListener("click", () => {
+      const val = pwdCopyVal.textContent;
+      if (!val) return;
+      navigator.clipboard.writeText(val).then(() => {
+        pwdCopyStatus.textContent = "Copié dans le presse-papiers !";
+        setTimeout(() => { pwdCopyStatus.textContent = "Cliquer pour copier"; }, 2500);
+      });
+    });
+
+    // Aperçu dynamique du nom d'utilisateur Matrix
+    document.getElementById("input-username").addEventListener("input", (e) => {
+      const val = e.target.value.trim().toLowerCase();
+      document.getElementById("username-preview").textContent = val ? `@${val}:kibare.test` : "@...:kibare.test";
+    });
+
+    // Gestion de la modale d'enrôlement
+    const modalEnroll = document.getElementById("modal-enroll");
+    const formEnroll  = document.getElementById("form-enroll");
+
+    function openEnrollModal() {
+      formEnroll.reset();
+      pwdCopyBox.hidden = true;
+      document.getElementById("username-preview").textContent = "@...:kibare.test";
+      modalEnroll.classList.add("open");
+      setTimeout(() => document.getElementById("input-username").focus(), 100);
+    }
+
+    function closeEnrollModal() {
+      modalEnroll.classList.remove("open");
+    }
+
+    document.getElementById("nav-open-enroll").addEventListener("click", (e) => {
+      e.preventDefault();
+      openEnrollModal();
+    });
+    document.getElementById("modal-enroll-close").addEventListener("click", closeEnrollModal);
+    document.getElementById("btn-cancel-enroll").addEventListener("click", closeEnrollModal);
+
+    modalEnroll.addEventListener("click", (e) => {
+      if (e.target === modalEnroll) closeEnrollModal();
+    });
+
+    // Soumission du formulaire d'enrôlement
+    formEnroll.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("input-username").value.trim().toLowerCase();
+      const displayName = document.getElementById("input-displayname").value.trim();
+      const password = inputPassword.value;
+      const requireTotp = document.getElementById("input-require-totp").checked;
+
+      const btnSubmit = document.getElementById("btn-submit-enroll");
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = '<span>Enrôlement en cours…</span>';
+
+      try {
+        const res = await apiCall("POST", "/enroll", {
+          username,
+          display_name: displayName,
+          password,
+          require_totp: requireTotp,
+        });
+
+        closeEnrollModal();
+        showToast(res.message, "ok");
+        await loadAgents();
+      } catch (err) {
+        showToast(`Erreur d'enrôlement : ${err.message}`, "err");
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = "<span>Enrôler l'agent</span>";
+      }
+    });
+
+    // Gestion de la modale de révocation
+    const modalRevoke = document.getElementById("modal-revoke");
+
+    function openRevokeModal(user) {
+      pendingRevokeUser = user;
+      document.getElementById("revoke-target-name").textContent = user.displayname || user.username;
+      document.getElementById("revoke-target-user").textContent = user.user_id;
+      modalRevoke.classList.add("open");
+    }
+
+    function closeRevokeModal() {
+      modalRevoke.classList.remove("open");
+      pendingRevokeUser = null;
+    }
+
+    document.getElementById("modal-revoke-close").addEventListener("click", closeRevokeModal);
+    document.getElementById("btn-cancel-revoke").addEventListener("click", closeRevokeModal);
+
+    modalRevoke.addEventListener("click", (e) => {
+      if (e.target === modalRevoke) closeRevokeModal();
+    });
+
+    document.getElementById("btn-confirm-revoke").addEventListener("click", async () => {
+      if (!pendingRevokeUser) return;
+      const btnConfirm = document.getElementById("btn-confirm-revoke");
+      btnConfirm.disabled = true;
+      btnConfirm.innerHTML = '<span>Révocation en cours…</span>';
+
+      try {
+        const res = await apiCall("POST", "/revoke", {
+          username: pendingRevokeUser.username,
+        });
+        closeRevokeModal();
+        showToast(res.message, "ok");
+        await loadAgents();
+      } catch (err) {
+        showToast(`Erreur : ${err.message}`, "err");
+      } finally {
+        btnConfirm.disabled = false;
+        btnConfirm.innerHTML = '<span>Confirmer la révocation</span>';
+      }
+    });
+
+    // Échap pour fermer les modales
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeEnrollModal();
+        closeRevokeModal();
+      }
+    });
+
+    // Démarrage initial
+    loadAgents();
+  </script>
+</body>
+</html>

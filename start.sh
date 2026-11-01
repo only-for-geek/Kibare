@@ -2,9 +2,7 @@
 
 set -Eeuo pipefail
 
-# --------------------------------------------------
 # Configuration du projet
-# --------------------------------------------------
 
 PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"
@@ -34,9 +32,7 @@ file_checksum() {
         -c 'import hashlib; from pathlib import Path; print(hashlib.sha256(Path("/data/homeserver.yaml").read_bytes()).hexdigest())'
 }
 
-# --------------------------------------------------
 # 1. Vérification des prérequis
-# --------------------------------------------------
 
 command -v docker >/dev/null 2>&1 \
     || error "Docker n'est pas installé."
@@ -61,9 +57,7 @@ docker info >/dev/null 2>&1 \
 
 info "Prérequis vérifiés."
 
-# --------------------------------------------------
 # 2. Préparation des variables d'environnement
-# --------------------------------------------------
 
 if [ ! -f "$ENV_FILE" ]; then
 
@@ -191,9 +185,7 @@ docker run --rm \
 
 unset INITIAL_ADMIN_PASSWORD
 
-# --------------------------------------------------
 # 3. Préparation des données Synapse
-# --------------------------------------------------
 
 mkdir -p "$DATA_DIR"
 
@@ -210,9 +202,7 @@ if [ ! -f "$CONFIG_FILE" ] && [ -f "$SIGNING_KEY" ]; then
     error "Une clé de signature existe sans homeserver.yaml. Intervention manuelle nécessaire."
 fi
 
-# --------------------------------------------------
 # 4. Initialisation de Synapse
-# --------------------------------------------------
 
 if [ ! -f "$CONFIG_FILE" ]; then
 
@@ -251,7 +241,6 @@ path = Path("/data/homeserver.yaml")
 
 config = yaml.safe_load(path.read_text())
 
-# --- PostgreSQL ---
 config["database"] = {
     "name": "psycopg2",
     "args": {
@@ -436,6 +425,17 @@ config["oidc_providers"] = [
 config["sso"] = {
     "client_whitelist": [
         "http://127.0.0.1:8080",
+        "http://127.0.0.1:8080/",
+        "http://localhost:8080",
+        "http://localhost:8080/",
+        "http://127.0.0.1:8081",
+        "http://127.0.0.1:8081/",
+        "http://localhost:8081",
+        "http://localhost:8081/",
+        "http://kibare.test",
+        "http://kibare.test/",
+        "https://kibare.test",
+        "https://kibare.test/",
         "http://127.0.0.1:8766/callback",
     ]
 }
@@ -476,18 +476,14 @@ fi
 unset OIDC_CLIENT_SECRET
 CONFIG_HASH_AFTER="$(file_checksum)"
 
-# --------------------------------------------------
 # 5. Vérification Docker Compose
-# --------------------------------------------------
 
 docker compose config -q \
     || error "La configuration Docker Compose est invalide."
 
 info "Configuration Docker Compose valide."
 
-# --------------------------------------------------
 # 6. Vérification Synapse
-# --------------------------------------------------
 
 info "Vérification de la configuration Synapse."
 
@@ -497,9 +493,7 @@ docker compose run --rm --no-deps \
     -c /data/homeserver.yaml \
     || error "La configuration Synapse est invalide."
 
-# --------------------------------------------------
 # 7. Démarrage des services
-# --------------------------------------------------
 
 info "Démarrage de Kibare."
 
@@ -514,14 +508,37 @@ if [ -n "$CONFIG_HASH_BEFORE" ] && [ "$CONFIG_HASH_BEFORE" != "$CONFIG_HASH_AFTE
         || error "Synapse n'est pas redevenu sain. Consulte les logs avec : docker compose logs synapse."
 fi
 
-# --------------------------------------------------
-# 8. Résultat
-# --------------------------------------------------
+# 8. Provisionnement du compte administrateur Synapse
+
+info "Provisionnement du compte administrateur Synapse (idempotent)."
+
+INITIAL_ADMIN_PASSWORD="$(sed -n 's/^KIBARE_INITIAL_ADMIN_PASSWORD=//p' "$ENV_FILE" | head -n 1)"
+
+if [ -z "$INITIAL_ADMIN_PASSWORD" ]; then
+    error "KIBARE_INITIAL_ADMIN_PASSWORD est absent du fichier .env."
+fi
+
+docker compose exec -T synapse \
+    register_new_matrix_user \
+    -u admin \
+    -p "$INITIAL_ADMIN_PASSWORD" \
+    --admin \
+    --exists-ok \
+    -c /data/homeserver.yaml \
+    || error "Le provisionnement du compte admin Synapse a échoué."
+
+unset INITIAL_ADMIN_PASSWORD
+
+info "Compte @admin:kibare.test prêt (créé ou déjà présent)."
+
+# 9. Résultat
 
 info "État des services :"
 
 docker compose ps
 
 printf '\nKibare est démarré.\n'
-printf 'Element Web : http://127.0.0.1:8080\n'
-printf 'Matrix API  : http://127.0.0.1:8008\n'
+printf 'Element Web    : http://127.0.0.1:8080\n'
+printf 'Matrix API     : http://127.0.0.1:8008\n'
+printf 'Portail        : http://127.0.0.1:8081\n'
+printf 'Administration : http://127.0.0.1:8081/admin.html\n'

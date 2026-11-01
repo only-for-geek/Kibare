@@ -45,7 +45,7 @@ La commande `login` écrit le jeton seul sur la sortie standard pour que cette a
 python3 scripts/kibare_admin.py enroll test --display-name "Compte de test"
 ```
 
-Le script demande deux fois un mot de passe temporaire d'au moins 14 caractères, sans l'afficher. Il crée l'identité Keycloak et le compte Matrix non-administrateur `@test:kibare.test`. À la première connexion SSO dans Element, l'agent devra changer son mot de passe et configurer une application TOTP.
+Le script demande deux fois un mot de passe temporaire d'au moins 14 caracteres, sans l'afficher. Il cree l'identite Keycloak et le compte Matrix non-administrateur `@test:kibare.test`. A la premiere connexion SSO dans Element, l'agent devra changer son mot de passe. La configuration de la double authentification TOTP est proposee mais non obligatoire : l'agent peut le faire depuis `http://127.0.0.1:8081/setup-2fa.html` ou plus tard depuis son compte Keycloak. L'administrateur peut l'imposer a tout moment depuis le panneau d'administration.
 
 Le jeton d'administration est vérifié avant que le script demande ce mot de passe temporaire.
 
@@ -66,7 +66,7 @@ python3 scripts/kibare_admin.py revoke @user:kibare.test
 
 La désactivation invalide les sessions du compte dans Synapse, désactive l'identité Keycloak et ferme ses sessions SSO. Pour vérifier le résultat, tentez de vous connecter de nouveau avec ce compte ou vérifiez qu'il ne peut plus synchroniser de nouveaux messages. Un appareil peut toutefois conserver des messages qu'il a déjà reçus et déchiffrés ; la révocation ne peut pas effacer ces copies locales.
 
-Dans Element, **Paramètres → Appareils → Supprimer cet appareil** ne déconnecte que l'appareil courant. La commande `revoke` est une action d'administration sur le compte entier : elle vise à invalider les sessions de tous ses appareils. Ne pas confondre ces deux actions avec **Désactiver le compte** dans les paramètres de compte Element, qui est une opération distincte et potentiellement permanente.
+Dans Element, le menu Paramètres, puis Appareils, puis Supprimer cet appareil ne déconnecte que l'appareil courant. La commande `revoke` est une action d'administration sur le compte entier : elle vise à invalider les sessions de tous ses appareils. Ne pas confondre ces deux actions avec la désactivation manuelle dans les paramètres de compte Element, qui est une opération distincte et potentiellement permanente.
 
 ## 5. Parcours complet d'exemple
 
@@ -89,9 +89,10 @@ python3 scripts/kibare_admin.py enroll --help
 python3 scripts/kibare_admin.py revoke --help
 ```
 
-L'outil gère aussi les salons privés chiffrés et les rôles par salon :
+L'outil gère également les salons privés chiffrés et les rôles :
 
-- `create-room` crée un salon privé, non fédéré et configuré pour le chiffrement Megolm ; ajoutez un `--invite @agent:kibare.test` pour chaque agent à inviter.
-- `set-room-role SALON UTILISATEUR member|moderator` attribue un rôle dans un salon.
+La commande `create-room` crée un salon privé, non fédéré et configuré pour le chiffrement Megolm. Ajoutez `--invite @agent:kibare.test` pour chaque agent à inviter.
 
-Pour ces commandes, voir les exemples de [README.md](../README.md). L'outil ne fournit actuellement ni commande de liste des comptes, ni réactivation d'un compte révoqué. L'intégration TOTP/OIDC est en place mais doit encore être validée en conditions réelles ; ce prototype ne doit pas servir à des échanges réels ou sensibles.
+La commande `set-room-role SALON UTILISATEUR member|moderator` attribue un rôle au sein d'un salon donné.
+
+Pour ces commandes, voir les exemples du fichier [README.md](../README.md). L'outil en ligne de commande ne fournit actuellement ni commande de liste des comptes, ni réactivation d'un compte révoqué (la console web `/admin.html` permet quant à elle de visualiser et forcer la 2FA). Ce prototype ne doit pas servir à des échanges réels ou sensibles.

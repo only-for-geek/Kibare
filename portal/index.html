@@ -1,87 +1,80 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#123c32">
-  <meta name="description" content="Kibare, l'espace de communication institutionnel hébergé sous votre contrôle.">
-  <title>Kibare — Espace institutionnel</title>
+  <meta name="theme-color" content="#15191E">
+  <meta name="description" content="Kibare, messagerie instantanée.">
+  <title>Kibare</title>
   <link rel="stylesheet" href="./styles.css">
   <script src="./status.js" defer></script>
 </head>
-<body>
+<body class="has-bg-photo">
+
+  <!-- Barre superieure -->
   <header class="topbar">
-    <a class="brand" href="/" aria-label="Kibare, accueil">
-      <span class="brand-mark" aria-hidden="true">K</span>
-      <span>Kibare<span class="brand-dot">.</span></span>
-    </a>
-    <div class="topbar-note"><span aria-hidden="true">⌂</span> Espace institutionnel</div>
+    <div class="topbar-left">
+      <a class="brand" href="/" aria-label="Kibare, accueil">
+        <span class="brand-mark" aria-hidden="true">K</span>
+        <span class="brand-title">Kibare</span>
+      </a>
+    </div>
+
+    <div class="topbar-right">
+      <a class="btn-secondary" href="/admin.html">
+        <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+        <span>Administration</span>
+      </a>
+    </div>
   </header>
 
-  <main>
-    <section class="hero" aria-labelledby="welcome-title">
-      <div class="hero-copy">
-        <p class="eyebrow">BURKINA FASO <span aria-hidden="true">/</span> COMMUNICATION DE SERVICE</p>
-        <h1 id="welcome-title">La confiance,<br>au cœur des échanges.</h1>
-        <p class="hero-intro">Un espace de communication pensé pour les agents publics. Vos conversations restent sur l’infrastructure de votre organisation.</p>
-        <a class="primary-button" href="http://127.0.0.1:8080">
-          Ouvrir la messagerie <span aria-hidden="true">↗</span>
+  <!-- Accueil -->
+  <main class="welcome-viewport">
+    <div class="welcome-card">
+
+      <!-- Logo -->
+      <div class="wc-logo">
+        <div class="wc-mark">K</div>
+      </div>
+
+      <!-- Nom et tagline -->
+      <h1 class="wc-name">Kibare</h1>
+      <p class="wc-tagline">Messagerie instantanée sécurisée</p>
+
+      <!-- CTA principal -->
+      <a class="wc-cta" id="btn-open-element" href="http://127.0.0.1:8080" target="_blank" rel="noopener noreferrer">
+        Commencer à discuter
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+      </a>
+
+
+
+      <!-- Séparateur -->
+      <div class="wc-divider"><span>ou</span></div>
+
+      <!-- Liens secondaires -->
+      <nav class="wc-links" aria-label="Liens secondaires">
+        <a class="wc-link" href="/admin.html">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+          Administration
         </a>
-        <p class="local-note"><span aria-hidden="true">◈</span> Hébergé localement · Propulsé par Matrix</p>
-      </div>
-      <div class="hero-art" aria-hidden="true">
-        <div class="orbit orbit-one"></div>
-        <div class="orbit orbit-two"></div>
-        <div class="art-center"><span class="art-symbol">K</span><span class="art-caption">ENSEMBLE<br>EN CONFIANCE</span></div>
-        <span class="art-star star-one">✳</span>
-        <span class="art-star star-two">✳</span>
-        <span class="art-ring ring-one"></span>
-        <span class="art-ring ring-two"></span>
-      </div>
-    </section>
+        <span class="wc-link-sep" aria-hidden="true">·</span>
+        <a class="wc-link" href="/setup-2fa.html">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+          Double authentification
+        </a>
+      </nav>
 
-    <section class="workspace" aria-label="État et fonctionnalités">
-      <div class="workspace-heading">
-        <div>
-          <p class="eyebrow">VOTRE ESPACE</p>
-          <h2>Tout commence ici.</h2>
-        </div>
-        <div class="server-status" id="server-status" role="status" aria-live="polite">
-          <span class="status-dot status-checking" id="status-dot" aria-hidden="true"></span>
-          <span id="status-label">Vérification du serveur…</span>
-        </div>
-      </div>
-      <div class="feature-grid">
-        <article class="feature-card">
-          <span class="card-icon icon-message" aria-hidden="true">✳</span>
-          <h3>Échanges chiffrés</h3>
-          <p>Les salons créés par l’outil sont privés et configurés pour le chiffrement Matrix Megolm. Vérifiez le cadenas dans Element.</p>
-          <a href="http://127.0.0.1:8080">Accéder aux conversations <span aria-hidden="true">→</span></a>
-        </article>
-        <article class="feature-card">
-          <span class="card-icon icon-group" aria-hidden="true">◎</span>
-          <h3>Canaux de service</h3>
-          <p>Des espaces de travail réservés aux agents invités, conçus pour les échanges des équipes.</p>
-          <a href="http://127.0.0.1:8080">Retrouver mon équipe <span aria-hidden="true">→</span></a>
-        </article>
-        <article class="feature-card">
-          <span class="card-icon icon-control" aria-hidden="true">⌂</span>
-          <h3>Sous votre contrôle</h3>
-          <p>Les services fonctionnent sur l’infrastructure locale, sans dépendance à une plateforme tierce.</p>
-          <span class="card-footnote">Serveur souverain · Protocole ouvert</span>
-        </article>
-      </div>
-    </section>
-
-    <aside class="notice">
-      <span class="notice-icon" aria-hidden="true">i</span>
-      <p><strong>Un espace en évolution.</strong> Le témoin ci-dessus confirme uniquement que l’API Matrix répond. Il ne vérifie ni l’identité d’un agent ni le chiffrement d’un salon existant. Ne partagez aucune information réelle ou sensible dans ce prototype.</p>
-    </aside>
+    </div>
   </main>
 
-  <footer>
-    <span>Kibare <span aria-hidden="true">·</span> Messagerie institutionnelle</span>
-    <span>Conçu pour le Burkina Faso <span aria-hidden="true">✳</span></span>
+
+
+  <!-- Footer -->
+  <footer class="portal-footer">
+    <span>Kibare</span>
+    <span>kibare.test</span>
   </footer>
+
 </body>
 </html>

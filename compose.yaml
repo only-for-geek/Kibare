@@ -82,6 +82,8 @@ services:
     depends_on:
       synapse:
         condition: service_healthy
+      admin-api:
+        condition: service_healthy
     volumes:
       - ./portal:/usr/share/nginx/html:ro
       - ./portal/nginx.conf:/etc/nginx/conf.d/default.conf:ro
@@ -92,6 +94,36 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+
+  admin-api:
+    image: python:3.13-slim
+    restart: unless-stopped
+    command: python /app/admin_api.py
+    depends_on:
+      synapse:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    volumes:
+      - ./scripts/admin_api.py:/app/admin_api.py:ro
+    environment:
+      SYNAPSE_BASE_URL: http://synapse:8008
+      SYNAPSE_REGISTRATION_SHARED_SECRET: ${SYNAPSE_REGISTRATION_SHARED_SECRET:?Définir SYNAPSE_REGISTRATION_SHARED_SECRET dans .env}
+      KEYCLOAK_BASE_URL: http://keycloak:8080
+      KEYCLOAK_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:?Définir KEYCLOAK_ADMIN_USERNAME dans .env}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Définir KEYCLOAK_ADMIN_PASSWORD dans .env}
+      SERVER_NAME: kibare.test
+      ADMIN_API_PORT: "8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
 volumes:
   kibare_postgres_data:
