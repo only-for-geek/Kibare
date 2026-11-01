@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#123c32">
+  <meta name="description" content="Interface d'administration Kibare — Enrôlement et révocation des comptes agents.">
+  <title>Kibare — Administration</title>
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    /* ── Variables locales administration ─────────────────────── */
+    :root {
+      --red: #c23b3b;
+      --red-light: #fdf0f0;
+      --red-border: #f0c8c8;
+      --green-ok: #1e7a4e;
+      --green-ok-bg: #edf7f2;
+      --green-ok-border: #b4deca;
+    }
+
+    /* ── Topbar lien admin ────────────────────────────────────── */
+    .topbar-nav { display: flex; align-items: center; gap: 20px; }
+    .topbar-link {
+      color: #69756e;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      padding: 5px 10px;
+      border-radius: 6px;
+      transition: background .15s;
+    }
+    .topbar-link:hover { background: #f0f4f1; color: var(--forest); }
+    .topbar-link.active { background: var(--mint); color: var(--forest); }
+
+    /* ── Layout ───────────────────────────────────────────────── */
+    .admin-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 24px;
+      margin-top: 32px;
+      align-items: start;
+    }
+
+    /* ── Panneaux ─────────────────────────────────────────────── */
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 18px 22px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .panel-icon {
+      width: 32px; height: 32px;
+      display: grid; place-items: center;
+      border-radius: 8px;
+      font-size: 15px;
+      flex: 0 0 auto;
+    }
+
+    .panel-icon-enroll { background: #f0f7f2; color: var(--green); }
+    .panel-icon-agents  { background: #f6f3ec; color: #8a6c26; }
+
+    .panel-title { font-size: 14px; font-weight: 720; color: #1a3027; margin: 0; }
+    .panel-subtitle { font-size: 10px; color: var(--muted); margin: 2px 0 0; }
+
+    .panel-body { padding: 20px 22px 22px; }
+
+    /* ── Formulaire d'enrôlement ──────────────────────────────── */
+    .form-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+
+    .form-label {
+      font-size: 11px;
+      font-weight: 680;
+      color: #3a4e42;
+    }
+
+    .form-input {
+      height: 38px;
+      padding: 0 12px;
+      border: 1px solid #d4ddd6;
+      border-radius: 7px;
+      font-size: 13px;
+      color: var(--ink);
+      background: #fafbfa;
+      transition: border-color .15s, box-shadow .15s;
+      outline: none;
+    }
+
+    .form-input:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px #2b6b521a;
+      background: #fff;
+    }
+
+    .form-input::placeholder { color: #aab3aa; }
+
+    /* Mot de passe + bouton générer */
+    .pwd-row { display: flex; gap: 7px; }
+    .pwd-row .form-input { flex: 1; font-family: ui-monospace, monospace; font-size: 12px; }
+
+    .btn-generate {
+      height: 38px;
+      padding: 0 12px;
+      border: 1px solid #d4ddd6;
+      border-radius: 7px;
+      background: #f4f7f5;
+      color: #3a5244;
+      font-size: 11px;
+      font-weight: 680;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s, border-color .15s;
+    }
+    .btn-generate:hover { background: #e6efea; border-color: #b8ccbe; }
+
+    .form-hint { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    .btn-enroll {
+      width: 100%;
+      height: 42px;
+      margin-top: 6px;
+      border: none;
+      border-radius: 8px;
+      background: var(--forest);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .17s, transform .17s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-enroll:hover { background: var(--green); transform: translateY(-1px); }
+    .btn-enroll:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    /* ── Feedback messages ────────────────────────────────────── */
+    .feedback {
+      margin-top: 14px;
+      padding: 10px 13px;
+      border-radius: 7px;
+      font-size: 11px;
+      line-height: 1.55;
+      display: none;
+    }
+    .feedback.show { display: block; }
+    .feedback.ok  { background: var(--green-ok-bg); border: 1px solid var(--green-ok-border); color: var(--green-ok); }
+    .feedback.err { background: var(--red-light); border: 1px solid var(--red-border); color: var(--red); }
+
+    /* ── Mot de passe généré à copier ────────────────────────── */
+    .pwd-generated {
+      margin-top: 8px;
+      padding: 8px 11px;
+      background: #f3f6f4;
+      border: 1px solid #dae4dd;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #3a4e42;
+      display: none;
+      cursor: pointer;
+      word-break: break-all;
+    }
+    .pwd-generated.show { display: block; }
+    .pwd-generated strong { display: block; font-size: 9px; color: var(--muted); margin-bottom: 3px; }
+
+    /* ── Tableau des agents ───────────────────────────────────── */
+    .agents-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .agents-count {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .btn-refresh {
+      height: 32px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: #3a5244;
+      font-size: 11px;
+      font-weight: 650;
+      cursor: pointer;
+      transition: background .14s;
+    }
+    .btn-refresh:hover { background: var(--mint); }
+
+    .agents-table-wrap {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      overflow: hidden;
+    }
+
+    .agents-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .agents-table th {
+      padding: 9px 13px;
+      background: #f7faf8;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .4px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .agents-table td {
+      padding: 11px 13px;
+      border-bottom: 1px solid #f1f5f2;
+      vertical-align: middle;
+      color: #26352e;
+    }
+
+    .agents-table tr:last-child td { border-bottom: none; }
+
+    .agents-table tr:hover td { background: #fafcfa; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .3px;
+    }
+
+    .badge-admin   { background: #e9f3fd; color: #2464a0; }
+    .badge-active  { background: #e9f7ef; color: #1e7a4e; }
+    .badge-inactive { background: #f5f5f5; color: #848484; }
+
+    .btn-revoke {
+      padding: 5px 12px;
+      border: 1px solid #f0c8c8;
+      border-radius: 5px;
+      background: var(--red-light);
+      color: var(--red);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .14s, transform .14s;
+    }
+    .btn-revoke:hover { background: #fce0e0; transform: translateY(-1px); }
+    .btn-revoke:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    /* ── État vide / chargement ───────────────────────────────── */
+    .agents-empty {
+      padding: 36px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .agents-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 28px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--line);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Section en-tête ──────────────────────────────────────── */
+    .admin-hero {
+      margin-top: 28px;
+      padding: 22px 26px;
+      border-radius: 14px;
+      background: linear-gradient(112deg, #123c32 0%, #164435 100%);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .admin-hero-title {
+      font-size: 20px;
+      font-weight: 680;
+      letter-spacing: -.6px;
+      margin: 0 0 5px;
+    }
+
+    .admin-hero-sub {
+      font-size: 11px;
+      color: #b2cdc1;
+      margin: 0;
+    }
+
+    .admin-hero-badge {
+      padding: 6px 14px;
+      border: 1px solid #2a5e4a;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #9ecfb8;
+      letter-spacing: .5px;
+    }
+
+    /* ── Responsive ───────────────────────────────────────────── */
+    @media (max-width: 860px) {
+      .admin-layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Kibare, accueil">
+      <span class="brand-mark" aria-hidden="true">K</span>
+      <span>Kibare<span class="brand-dot">.</span></span>
+    </a>
+    <nav class="topbar-nav">
+      <a class="topbar-link" href="/">Accueil</a>
+      <a class="topbar-link active" href="/admin.html" aria-current="page">Administration</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="admin-hero">
+      <div>
+        <h1 class="admin-hero-title">Gestion des agents</h1>
+        <p class="admin-hero-sub">Enrôlement et révocation des comptes — accès administrateur uniquement</p>
+      </div>
+      <span class="admin-hero-badge">ACCÈS RESTREINT</span>
+    </div>
+
+    <div class="admin-layout">
+
+      <!-- ── Formulaire d'enrôlement ─────────────────────────── -->
+      <aside>
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-icon panel-icon-enroll" aria-hidden="true">＋</span>
+            <div>
+              <p class="panel-title">Enrôler un agent</p>
+              <p class="panel-subtitle">Créer un nouveau compte institutionnel</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <form id="enroll-form" novalidate>
+
+              <div class="form-field">
+                <label class="form-label" for="input-username">Identifiant</label>
+                <input
+                  id="input-username"
+                  class="form-input"
+                  type="text"
+                  name="username"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="ex. a.kaboré"
+                  pattern="[a-z0-9._=\-]{1,64}"
+                  required
+                >
+                <span class="form-hint">Lettres minuscules, chiffres, point, tiret — sans espace.</span>
+              </div>
+
+              <div class="form-field">
+                <label class="form-label" for="input-displayname">Nom complet</label>
+                <input
+                  id="input-displayname"
+                  class="form-input"
+                  type="text"
+                  name="display_name"
+                  autocomplete="off"
+                  placeholder="ex. Adama Kaboré"
+                  required
+                >
+              </div>
+
+              <div class="form-field">
+                <label class="form-label" for="input-password">Mot de passe temporaire</label>
+                <div class="pwd-row">
+                  <input
+                    id="input-password"
+                    class="form-input"
+                    type="text"
+                    name="password"
+                    autocomplete="new-password"
+                    spellcheck="false"
+                    placeholder="Min. 14 caractères"
+                    minlength="14"
+                    required
+                  >
+                  <button type="button" class="btn-generate" id="btn-generate">Générer</button>
+                </div>
+                <span class="form-hint">Communiquez ce mot de passe à l'agent en personne.</span>
+                <div class="pwd-generated" id="pwd-copy-hint" role="status" aria-live="polite">
+                  <strong>Cliquez pour copier</strong>
+                  <span id="pwd-display"></span>
+                </div>
+              </div>
+
+              <button type="submit" class="btn-enroll" id="btn-enroll">
+                <span id="enroll-btn-text">Enrôler l'agent</span>
+              </button>
+            </form>
+
+            <div class="feedback" id="enroll-feedback" role="alert" aria-live="polite"></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ── Tableau des agents ──────────────────────────────── -->
+      <section aria-labelledby="agents-title">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-icon panel-icon-agents" aria-hidden="true">◎</span>
+            <div>
+              <p class="panel-title" id="agents-title">Agents enrôlés</p>
+              <p class="panel-subtitle">Comptes actifs sur le serveur</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="agents-toolbar">
+              <span class="agents-count" id="agents-count" aria-live="polite"></span>
+              <button class="btn-refresh" id="btn-refresh" type="button">↻ Actualiser</button>
+            </div>
+
+            <div class="agents-table-wrap">
+              <div id="agents-loading" class="agents-loading">
+                <div class="spinner" aria-hidden="true"></div>
+                Chargement des comptes…
+              </div>
+              <div id="agents-empty" class="agents-empty" hidden>
+                Aucun agent enrôlé pour le moment.
+              </div>
+              <table class="agents-table" id="agents-table" hidden aria-label="Liste des agents enrôlés">
+                <thead>
+                  <tr>
+                    <th scope="col">Agent</th>
+                    <th scope="col">Identifiant</th>
+                    <th scope="col">Statut</th>
+                    <th scope="col">Rôle</th>
+                    <th scope="col">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="agents-tbody"></tbody>
+              </table>
+            </div>
+
+            <div class="feedback" id="revoke-feedback" role="alert" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /.admin-layout -->
+  </main>
+
+  <footer>
+    <span>Kibare <span aria-hidden="true">·</span> Administration</span>
+    <span>Accès réservé aux administrateurs <span aria-hidden="true">✳</span></span>
+  </footer>
+
+  <script>
+    /* =================================================================
+       Kibare Admin UI — vanilla JS, zéro dépendance externe
+    ================================================================= */
+    "use strict";
+
+    const API = "/api";
+
+    // ── Utilitaires ────────────────────────────────────────────────
+
+    function showFeedback(el, message, type) {
+      el.textContent = message;
+      el.className = `feedback show ${type}`;
+    }
+
+    function hideFeedback(el) {
+      el.className = "feedback";
+      el.textContent = "";
+    }
+
+    function generatePassword(len = 20) {
+      const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%-_";
+      const arr = new Uint8Array(len);
+      crypto.getRandomValues(arr);
+      return Array.from(arr, b => chars[b % chars.length]).join("");
+    }
+
+    async function apiCall(method, path, body) {
+      const opts = {
+        method,
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        cache: "no-store",
+      };
+      if (body !== undefined) opts.body = JSON.stringify(body);
+      const resp = await fetch(API + path, opts);
+      const data = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+      if (!resp.ok) throw new Error(data.error || `Erreur HTTP ${resp.status}`);
+      return data;
+    }
+
+    // ── Génération du mot de passe ─────────────────────────────────
+
+    const btnGenerate = document.getElementById("btn-generate");
+    const inputPassword = document.getElementById("input-password");
+    const pwdCopyHint = document.getElementById("pwd-copy-hint");
+    const pwdDisplay = document.getElementById("pwd-display");
+
+    btnGenerate.addEventListener("click", () => {
+      const pwd = generatePassword();
+      inputPassword.value = pwd;
+      pwdDisplay.textContent = pwd;
+      pwdCopyHint.className = "pwd-generated show";
+    });
+
+    pwdCopyHint.addEventListener("click", () => {
+      const text = inputPassword.value;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        pwdCopyHint.querySelector("strong").textContent = "✓ Copié !";
+        setTimeout(() => {
+          pwdCopyHint.querySelector("strong").textContent = "Cliquez pour copier";
+        }, 2000);
+      });
+    });
+
+    // ── Formulaire d'enrôlement ────────────────────────────────────
+
+    const enrollForm = document.getElementById("enroll-form");
+    const enrollFeedback = document.getElementById("enroll-feedback");
+    const btnEnroll = document.getElementById("btn-enroll");
+    const enrollBtnText = document.getElementById("enroll-btn-text");
+
+    enrollForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideFeedback(enrollFeedback);
+
+      const username = document.getElementById("input-username").value.trim().toLowerCase();
+      const displayName = document.getElementById("input-displayname").value.trim();
+      const password = inputPassword.value;
+
+      if (!username) { showFeedback(enrollFeedback, "L'identifiant est requis.", "err"); return; }
+      if (!displayName) { showFeedback(enrollFeedback, "Le nom complet est requis.", "err"); return; }
+      if (password.length < 14) { showFeedback(enrollFeedback, "Le mot de passe doit contenir au moins 14 caractères.", "err"); return; }
+
+      btnEnroll.disabled = true;
+      enrollBtnText.textContent = "Enrôlement…";
+
+      try {
+        const result = await apiCall("POST", "/enroll", {
+          username,
+          display_name: displayName,
+          password,
+        });
+        showFeedback(enrollFeedback, result.message, "ok");
+        enrollForm.reset();
+        pwdCopyHint.className = "pwd-generated";
+        await loadAgents();
+      } catch (err) {
+        showFeedback(enrollFeedback, err.message, "err");
+      } finally {
+        btnEnroll.disabled = false;
+        enrollBtnText.textContent = "Enrôler l'agent";
+      }
+    });
+
+    // ── Liste des agents ───────────────────────────────────────────
+
+    const agentsLoading = document.getElementById("agents-loading");
+    const agentsEmpty   = document.getElementById("agents-empty");
+    const agentsTable   = document.getElementById("agents-table");
+    const agentsTbody   = document.getElementById("agents-tbody");
+    const agentsCount   = document.getElementById("agents-count");
+    const revokeFeedback = document.getElementById("revoke-feedback");
+
+    async function loadAgents() {
+      agentsLoading.hidden = false;
+      agentsTable.hidden = true;
+      agentsEmpty.hidden = true;
+      hideFeedback(revokeFeedback);
+
+      try {
+        const data = await apiCall("GET", "/users");
+        const users = data.users || [];
+        renderAgents(users);
+      } catch (err) {
+        agentsLoading.hidden = true;
+        showFeedback(revokeFeedback, `Impossible de charger la liste : ${err.message}`, "err");
+      }
+    }
+
+    function formatDate(ts) {
+      if (!ts) return "—";
+      try {
+        return new Intl.DateTimeFormat("fr-FR", {
+          day: "2-digit", month: "2-digit", year: "numeric",
+          hour: "2-digit", minute: "2-digit",
+        }).format(new Date(ts));
+      } catch {
+        return "—";
+      }
+    }
+
+    function renderAgents(users) {
+      agentsLoading.hidden = true;
+
+      if (!users.length) {
+        agentsEmpty.hidden = false;
+        agentsCount.textContent = "0 agent";
+        return;
+      }
+
+      const nonAdminCount = users.filter(u => !u.admin).length;
+      agentsCount.textContent = `${users.length} compte${users.length > 1 ? "s" : ""} (${nonAdminCount} agent${nonAdminCount > 1 ? "s" : ""})`;
+
+      agentsTbody.innerHTML = "";
+
+      for (const u of users) {
+        const tr = document.createElement("tr");
+
+        // Nom affiché
+        const tdName = document.createElement("td");
+        tdName.innerHTML = `<strong>${escapeHtml(u.displayname)}</strong>`;
+        tr.appendChild(tdName);
+
+        // Identifiant
+        const tdUser = document.createElement("td");
+        tdUser.style.fontFamily = "ui-monospace, monospace";
+        tdUser.style.fontSize = "11px";
+        tdUser.style.color = "var(--muted)";
+        tdUser.textContent = `@${u.username}`;
+        tr.appendChild(tdUser);
+
+        // Statut
+        const tdStatus = document.createElement("td");
+        if (u.deactivated) {
+          tdStatus.innerHTML = '<span class="badge badge-inactive">Révoqué</span>';
+        } else {
+          tdStatus.innerHTML = '<span class="badge badge-active">Actif</span>';
+        }
+        tr.appendChild(tdStatus);
+
+        // Rôle
+        const tdRole = document.createElement("td");
+        if (u.admin) {
+          tdRole.innerHTML = '<span class="badge badge-admin">Administrateur</span>';
+        } else {
+          tdRole.textContent = "Agent";
+        }
+        tr.appendChild(tdRole);
+
+        // Action
+        const tdAction = document.createElement("td");
+        if (u.admin || u.deactivated) {
+          tdAction.innerHTML = '<span style="color:var(--muted);font-size:11px">—</span>';
+        } else {
+          const btn = document.createElement("button");
+          btn.className = "btn-revoke";
+          btn.textContent = "Révoquer";
+          btn.dataset.username = u.username;
+          btn.dataset.displayname = u.displayname;
+          btn.addEventListener("click", handleRevoke);
+          tdAction.appendChild(btn);
+        }
+        tr.appendChild(tdAction);
+
+        agentsTbody.appendChild(tr);
+      }
+
+      agentsTable.hidden = false;
+    }
+
+    async function handleRevoke(e) {
+      const btn = e.currentTarget;
+      const username = btn.dataset.username;
+      const displayname = btn.dataset.displayname;
+
+      if (!confirm(`Révoquer définitivement le compte de « ${displayname} » (@${username}) ?\n\nToutes les sessions actives seront immédiatement invalidées.`)) {
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Révocation…";
+      hideFeedback(revokeFeedback);
+
+      try {
+        const result = await apiCall("POST", "/revoke", { username });
+        showFeedback(revokeFeedback, result.message, "ok");
+        await loadAgents();
+      } catch (err) {
+        showFeedback(revokeFeedback, `Erreur : ${err.message}`, "err");
+        btn.disabled = false;
+        btn.textContent = "Révoquer";
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    // ── Actualisation ──────────────────────────────────────────────
+    document.getElementById("btn-refresh").addEventListener("click", loadAgents);
+
+    // ── Chargement initial ─────────────────────────────────────────
+    loadAgents();
+  </script>
+</body>
+</html>

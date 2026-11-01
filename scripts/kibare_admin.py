@@ -182,7 +182,7 @@ class KeycloakClient:
                 "emailVerified": True,
                 "firstName": first_name,
                 "lastName": last_name,
-                "requiredActions": ["CONFIGURE_TOTP"],
+                "requiredActions": [],
                 "credentials": [
                     {
                         "type": "password",
@@ -355,7 +355,7 @@ def login(args):
         f"{args.homeserver.rstrip('/')}/_matrix/client/v3/login/sso/redirect?{query}"
     )
     print(
-        "Un navigateur va s'ouvrir pour la connexion Kibare avec mot de passe et TOTP.",
+        "Un navigateur va s'ouvrir pour la connexion Kibare.",
         file=sys.stderr,
     )
     print(f"Si nécessaire, ouvrez : {login_url}", file=sys.stderr)
@@ -448,7 +448,7 @@ def enroll(args):
                 ) from error
             raise
     print(f"Compte enrôlé : {user_id}")
-    print("L'agent devra définir son mot de passe puis configurer une application TOTP lors de sa première connexion.")
+    print("L'agent devra définir son mot de passe lors de sa première connexion (configuration TOTP optionnelle).")
 
 
 def revoke(args):

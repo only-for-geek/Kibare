@@ -505,7 +505,32 @@ if [ -n "$CONFIG_HASH_BEFORE" ] && [ "$CONFIG_HASH_BEFORE" != "$CONFIG_HASH_AFTE
 fi
 
 # --------------------------------------------------
-# 8. Résultat
+# 8. Provisionnement du compte administrateur Synapse
+# --------------------------------------------------
+
+info "Provisionnement du compte administrateur Synapse (idempotent)."
+
+INITIAL_ADMIN_PASSWORD="$(sed -n 's/^KIBARE_INITIAL_ADMIN_PASSWORD=//p' "$ENV_FILE" | head -n 1)"
+
+if [ -z "$INITIAL_ADMIN_PASSWORD" ]; then
+    error "KIBARE_INITIAL_ADMIN_PASSWORD est absent du fichier .env."
+fi
+
+docker compose exec -T synapse \
+    register_new_matrix_user \
+    -u admin \
+    -p "$INITIAL_ADMIN_PASSWORD" \
+    --admin \
+    --exists-ok \
+    -c /data/homeserver.yaml \
+    || error "Le provisionnement du compte admin Synapse a échoué."
+
+unset INITIAL_ADMIN_PASSWORD
+
+info "Compte @admin:kibare.test prêt (créé ou déjà présent)."
+
+# --------------------------------------------------
+# 9. Résultat
 # --------------------------------------------------
 
 info "État des services :"
@@ -513,5 +538,7 @@ info "État des services :"
 docker compose ps
 
 printf '\nKibare est démarré.\n'
-printf 'Element Web : http://127.0.0.1:8080\n'
-printf 'Matrix API  : http://127.0.0.1:8008\n'
+printf 'Element Web    : http://127.0.0.1:8080\n'
+printf 'Matrix API     : http://127.0.0.1:8008\n'
+printf 'Portail        : http://127.0.0.1:8081\n'
+printf 'Administration : http://127.0.0.1:8081/admin.html\n'

@@ -18,7 +18,7 @@
       "name": "Configure OTP",
       "providerId": "CONFIGURE_TOTP",
       "enabled": true,
-      "defaultAction": true,
+      "defaultAction": false,
       "priority": 10
     }
   ],
@@ -57,9 +57,7 @@
       "emailVerified": true,
       "firstName": "Kibare",
       "lastName": "Administrateur",
-      "requiredActions": [
-        "CONFIGURE_TOTP"
-      ],
+      "requiredActions": [],
       "credentials": [
         {
           "type": "password",
