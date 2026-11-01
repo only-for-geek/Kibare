@@ -8,5 +8,13 @@
   },
   "disable_custom_urls": true,
   "disable_guests": true,
-  "default_country_code": "BF"
+  "default_country_code": "BF",
+
+  "integrations_ui_url": null,
+  "integrations_rest_url": null,
+  "integrations_widgets_urls": [],
+
+  "bug_report_endpoint_url": null,
+
+  "default_federate": false
 }
