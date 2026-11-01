@@ -7,6 +7,12 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": false,
   "rememberMe": false,
+  "internationalizationEnabled": true,
+  "defaultLocale": "fr",
+  "supportedLocales": [
+    "fr",
+    "en"
+  ],
   "otpPolicyType": "totp",
   "otpPolicyAlgorithm": "HmacSHA1",
   "otpPolicyDigits": 6,

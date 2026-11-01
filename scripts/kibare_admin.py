@@ -234,7 +234,7 @@ class LoginCallbackHandler(http.server.BaseHTTPRequestHandler):
             status = 400
         body = (
             "<!doctype html><html lang=\"fr\"><meta charset=\"utf-8\">"
-            "<title>Kibare — Connexion</title>"
+            "<title>Kibare : Connexion</title>"
             "<p>" + message + "</p></html>"
         ).encode("utf-8")
         self.send_response(status)
