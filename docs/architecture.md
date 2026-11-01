@@ -1,96 +1,46 @@
 # Architecture technique de Kibare
 
-## 1. Présentation générale
+## Présentation
 
-Kibare est un prototype de plateforme de messagerie instantanée reposant sur le protocole ouvert Matrix. Son architecture s'appuie sur des composants indépendants, conteneurisés avec Docker Compose.
+Kibare est un prototype local de messagerie fondé sur Matrix. L'organisation héberge elle-même les composants et conserve ses données sur sa machine ou son infrastructure. Aucun service tiers n'est indispensable à l'exécution.
 
-L'objectif est de disposer d'une infrastructure de communication auto-hébergeable, dont l'organisation qui l'exploite conserve la maîtrise.
+## Composants
 
-## 2. Vue d'ensemble
+| Service | Rôle | Adresse dans le prototype |
+|---|---|---|
+| Portail Kibare / Nginx | Accueil français responsive, liens vers la messagerie et témoin d'API Matrix | `http://127.0.0.1:8081` |
+| Element Web | Client de messagerie aux couleurs Kibare, connecté au homeserver local | `http://127.0.0.1:8080` |
+| Matrix Synapse | Comptes, sessions, salons et événements Matrix | `http://127.0.0.1:8008` |
+| Keycloak | Fournisseur OpenID Connect local et gestion du second facteur TOTP | `http://127.0.0.1:8082` |
+| PostgreSQL | Persistance Synapse sur un volume Docker nommé | Réseau Docker uniquement |
 
-L'architecture actuelle repose sur trois services principaux :
+`scripts/kibare_admin.py` est un outil d'exploitation local, pas un service web. Il s'appuie sur les API officielles Matrix/Synapse pour enrôler des agents, créer des salons, attribuer un rôle par salon et révoquer un compte.
 
-- **Element Web** : interface utilisateur permettant aux utilisateurs d'accéder à la messagerie.
-- **Matrix Synapse** : serveur d'accueil Matrix (*homeserver*), responsable de la gestion des utilisateurs, des salons et des échanges de messages.
-- **PostgreSQL** : système de gestion de base de données utilisé par Synapse pour la persistance des données.
+## Flux
 
-Docker Compose assure le lancement et l'organisation de ces services.
+1. Le navigateur charge le portail statique ; son indicateur interroge uniquement `/_matrix/client/versions` via le proxy local Nginx.
+2. L'agent ouvre Element, qui échange avec l'API Matrix de Synapse.
+3. Synapse écrit dans PostgreSQL sur le réseau interne Compose.
+4. Les salons créés avec l'outil d'administration sont privés, chiffrés avec Megolm, non fédérés, limités aux invités et configurés pour ne montrer l'historique qu'aux utilisateurs déjà présents.
 
-## 3. Organisation des composants
+La configuration Element fixe le serveur `kibare.test`, désactive les inscriptions, les invités et les connexions tierces, et utilise le thème clair. Synapse délègue la connexion à Keycloak en OIDC et désactive l'authentification par mot de passe Matrix. Les endpoints OIDC publics du navigateur utilisent localhost ; les échanges de jetons et de clés entre conteneurs utilisent le réseau interne Compose.
 
-### 3.1. Client web - Element
+Keycloak impose TOTP lors de la première connexion et à chaque compte enrôlé. Les services web sont liés à `127.0.0.1` et Keycloak utilise `start-dev` pour le prototype. Synapse ignore la validation stricte des métadonnées OIDC (`skip_verification`) car les endpoints du prototype sont en HTTP ; ce contournement doit être retiré avec la mise en place de TLS avant toute exposition hors machine.
 
-Element Web constitue l'interface de communication avec la plateforme.
+Le TOTP constitue le second facteur de connexion auprès de Keycloak. La vérification cryptographique des appareils Matrix est un autre mécanisme : un appareil Element nouvellement ajouté peut nécessiter l'approbation d'un appareil déjà vérifié ou une clé de récupération pour accéder aux clés E2EE. Cette approbation ne remplace pas l'authentification SSO/MFA.
 
-Il est configuré pour utiliser le serveur Matrix de Kibare :
+## Inscription et administration
 
-- Serveur : `kibare.test`
-- URL locale : `http://127.0.0.1:8008`
-- Configuration : `element/config.json`
+`start.sh` génère localement les secrets PostgreSQL, OIDC et Keycloak, rend le fichier d'import du realm hors Git, initialise ou ajuste `synapse/data/homeserver.yaml`, désactive l'inscription libre, les invités, la fédération et les mots de passe Matrix, puis démarre la pile. L'inscription partagée est réservée au bootstrap local du premier administrateur par la commande Synapse documentée dans le README.
 
-Le client est actuellement accessible localement sur le port `8080`.
+Les agents sont créés par un administrateur dans Keycloak et Synapse avec un mot de passe temporaire saisi de façon masquée ; leur premier accès leur impose un changement de mot de passe et l'enrôlement TOTP. Ils ne reçoivent pas de privilège serveur. Lors d'un essai manuel rapporté par l'équipe, un compte agent a terminé le parcours SSO avec un code OTP dans une fenêtre privée. La révocation désactive le compte et les sessions dans Synapse et Keycloak ; l'équipe a observé que les appareils Element déjà connectés perdaient leur session. Cette action ne peut effacer les anciens messages déjà déchiffrés et mis en cache sur un appareil. Les rôles `member` et `moderator` s'appliquent dans un seul salon et ne remplacent pas une politique institutionnelle complète.
 
-### 3.2. Serveur Matrix - Synapse
+## Données persistantes et limites
 
-Synapse assure les fonctions centrales de la messagerie :
+- `synapse/data/` contient la configuration, les clés de signature et le stockage Synapse ; ce dossier est ignoré par Git.
+- `kibare_postgres_data` conserve la base ; ne pas supprimer ce volume sans sauvegarde.
+- `.env` contient des secrets et reste local ; le jeton administrateur est gardé dans le terminal d'administration.
+- Le portail n'interprète aucun message et n'est pas un client de chat.
+- Les essais MFA et révocation positifs sont rapportés par l'équipe ; le refus de codes TOTP invalides, la démonstration E2EE, les sauvegardes testées et TLS restent à traiter avant tout usage de données réelles.
 
-- Gestion des comptes et des sessions.
-- Création et gestion des salons.
-- Transmission et synchronisation des événements Matrix.
-- Prise en charge des mécanismes de chiffrement de bout en bout proposés par Matrix, lorsque ceux-ci sont activés dans les salons.
-
-Les données et fichiers de configuration générés par Synapse sont conservés dans `synapse/data/`.
-
-### 3.3. Base de données - PostgreSQL
-
-PostgreSQL assure la persistance des données utilisées par Synapse.
-
-La base de données :
-
-- Fonctionne dans un conteneur dédié.
-- N'expose pas directement de port sur l'hôte.
-- Utilise un volume Docker nommé pour conserver les données.
-- Dispose d'un contrôle de santé permettant de vérifier sa disponibilité avant le démarrage de Synapse.
-
-## 4. Flux de communication
-
-Dans la configuration actuelle :
-
-1. L'utilisateur accède à Element Web via son navigateur sur le port `8080`.
-2. Element communique avec Synapse via l'API Matrix exposée sur le port `8008`.
-3. Synapse communique avec PostgreSQL à travers le réseau interne Docker.
-4. PostgreSQL conserve les données nécessaires au fonctionnement du serveur.
-
-Les ports web exposés sont liés à l'interface locale `127.0.0.1`. Cette configuration limite leur accessibilité depuis le réseau externe.
-
-## 5. Persistance des données
-
-Les données persistantes sont organisées comme suit :
-
-- `synapse/data/` : configuration, clés et données générées par Synapse.
-- Volume Docker `kibare_postgres_data` : données de PostgreSQL.
-
-Ces données ne doivent pas être intégrées au dépôt Git, car elles peuvent contenir des informations sensibles ou des éléments nécessaires à la continuité du service.
-
-## 6. Sécurité et déploiement
-
-Le prototype adopte plusieurs mesures de base :
-
-- Stockage du mot de passe PostgreSQL dans une variable d'environnement.
-- Non-publication directe du port PostgreSQL sur l'hôte.
-- Limitation des ports Element et Synapse à l'interface locale.
-- Conservation des données dans des volumes persistants.
-
-Un déploiement institutionnel nécessitera des mesures supplémentaires, notamment :
-
-- Un nom de domaine accessible.
-- HTTPS et un reverse proxy.
-- Une politique de sauvegarde et de restauration.
-- Une gestion rigoureuse des comptes, des rôles et des sessions.
-- Des tests de sécurité et une validation de la configuration Matrix.
-
-## 7. État de l'architecture
-
-Cette architecture correspond à la configuration du prototype local.
-
-Des évolutions pourront être apportées pour répondre aux besoins d'un déploiement institutionnel, notamment en matière de disponibilité, de supervision, de gestion des identités et de sécurité opérationnelle.
+Voir [la note de sécurité](security.md), [les licences](open-source.md) et [la revue des exigences du sprint](requirements-review.md).

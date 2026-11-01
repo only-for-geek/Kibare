@@ -1,120 +1,91 @@
-# Kibare - L'information en toute confiance
+# Kibare — messagerie institutionnelle souveraine
 
-**Une messagerie sécurisée, souveraine et adaptée aux besoins des institutions burkinabè.**
+Kibare est un prototype de messagerie pour les agents publics, construit sur le protocole ouvert Matrix. Il associe Synapse, Element Web et PostgreSQL dans une installation locale contrôlée par l'organisation. L'interface d'accueil en français met en avant l'état du serveur et les accès utiles ; Element reste le client de conversation.
 
-Kibare est un prototype de messagerie instantanée développé dans le cadre du Sprint Technique Pré-Hackathon 2026 (Hackathon 226 - Édition 2026).
+> **Prototype de sélection — pas prêt pour des échanges réels.** L'équipe a rapporté un essai positif de connexion agent avec TOTP et la perte des sessions Element testées après révocation. Le chiffrement E2EE n'a pas encore été démontré dans le stockage ; Synapse contourne aussi la validation stricte des métadonnées OIDC pour permettre HTTP local. Utilisez exclusivement des comptes, fichiers et messages fictifs, et ne publiez pas les services.
 
-Le projet explore la mise en place d'une solution de communication institutionnelle reposant sur des technologies ouvertes, une infrastructure auto-hébergeable et les mécanismes de chiffrement de bout en bout proposés par Matrix.
+## Ce qui est déjà en place
 
-## Stack technique
+- **Déploiement autonome :** Docker Compose, PostgreSQL persistant et services publiés uniquement sur `127.0.0.1`.
+- **Inscription maîtrisée :** l'inscription libre, les invités et la fédération sont désactivés lors du lancement ; les agents sont créés par un administrateur.
+- **Authentification à deux facteurs :** Keycloak fournit l'authentification OIDC et impose la configuration TOTP avant l'accès. Les mots de passe Matrix ne permettent plus de connexion directe.
+- **Salons institutionnels :** l'outil d'administration crée des salons privés, non fédérés, chiffrés avec Megolm et limités à l'historique depuis l'adhésion.
+- **Contrôle d'accès :** enrôlement, révocation des sessions et rôles membre/modérateur par salon.
+- **Interface Kibare :** accueil responsive en français et client Element configuré avec l'identité visuelle Kibare.
 
-- **Matrix Synapse** - Serveur de communication.
-- **Element Web** - Client de messagerie.
-- **PostgreSQL** - Système de gestion de base de données.
-- **Docker Compose** - Orchestration des services.
+Le TOTP est le facteur d'authentification Keycloak. L'approbation cryptographique d'un nouvel appareil Matrix, lorsqu'elle est nécessaire pour les clés E2EE, est un mécanisme distinct. Voir l'[état de validation](docs/progress.md), la [revue du brief](docs/requirements-review.md) et les [scénarios de test](tests/README).
 
-*Caddy, pour le reverse proxy et la gestion TLS, est envisagé pour un futur déploiement, mais n'est pas encore intégré.*
+Le périmètre et les limites sont décrits dans [la revue des exigences](docs/requirements-review.md), [la note de sécurité](docs/security.md) et [l'état d'avancement](docs/progress.md).
 
-## Prérequis
+## Démarrage local
 
-- Git.
-- Docker installé et fonctionnel.
-- Docker Compose (plugin `docker compose`).
-- OpenSSL.
-- Bash.
-
-## Installation et démarrage
-
-Récupérer le projet :
+Prérequis : Git, Docker Engine avec le plugin `docker compose`, OpenSSL et Python 3.
 
 ```bash
 git clone https://github.com/only-for-geek/Kibare.git
 cd Kibare
-```
-
-Rendre le script exécutable :
-
-```bash
 chmod +x start.sh
-```
-
-Lancer Kibare :
-
-```bash
 ./start.sh
 ```
 
-Le script automatise plusieurs opérations :
+Le script génère les secrets locaux, initialise Synapse si nécessaire, vérifie la configuration, puis démarre les services. Les données existantes sont conservées.
 
-- Vérification des prérequis.
-- Création du fichier `.env` et génération d'un secret PostgreSQL si nécessaire.
-- Initialisation de la configuration Synapse lorsqu'elle est absente.
-- Vérification de la cohérence de la configuration PostgreSQL.
-- Validation de la configuration Synapse.
-- Démarrage des services Docker Compose.
+| Service | Adresse locale |
+|---|---|
+| Accueil Kibare | http://127.0.0.1:8081 |
+| Messagerie Element | http://127.0.0.1:8080 |
+| API Matrix | http://127.0.0.1:8008 |
+| Identité et MFA Keycloak | http://127.0.0.1:8082 |
 
-Les configurations et secrets déjà présents sont conservés. Le script s'arrête lorsqu'il détecte une incohérence nécessitant une intervention manuelle.
+### Créer le premier administrateur
 
-**État des tests :** le démarrage et la validation d'une installation existante ont été vérifiés. Le parcours complet de première installation reste à tester sur une machine vierge.
+Sur la machine qui héberge Kibare, créer le compte administrateur après le démarrage :
 
-## Accès aux services
+```bash
+docker compose exec synapse register_new_matrix_user \
+  -c /data/homeserver.yaml --admin http://localhost:8008
+```
 
-Une fois les services démarrés :
+La commande demande le nom et le mot de passe sans les inscrire dans l'historique du terminal. Ce compte est réservé à l'administration ; les comptes d'agents créés par l'outil ne sont jamais administrateurs.
 
-- **Element Web :** http://127.0.0.1:8080
-- **API Matrix :** http://127.0.0.1:8008
+Le compte `admin` est également précréé dans le realm Keycloak `kibare`. Pour sa première connexion OIDC, récupérez son mot de passe temporaire localement depuis `.env` :
 
-Ces adresses sont destinées à un environnement local. Elles ne constituent pas une configuration de déploiement accessible depuis Internet.
+```bash
+awk -F= '$1 == "KIBARE_INITIAL_ADMIN_PASSWORD" { print $2 }' .env
+```
 
-## Architecture et sécurité
+Connectez-vous ensuite dans Element avec le bouton SSO **Kibare** et l'identifiant `admin`. Keycloak exige la configuration d'une application d'authentification TOTP. Après ce premier enrôlement MFA, cette même identité OIDC est associée au compte Matrix administrateur.
 
-Kibare utilise Matrix Synapse comme serveur central de communication, PostgreSQL pour la persistance des données et Element Web comme interface utilisateur.
+### Enrôler un agent et gérer un salon
 
-Les ports exposés sont limités à l'interface locale de la machine. Les données persistantes et les secrets sont conservés localement et exclus du dépôt Git.
+La commande `login` ouvre le navigateur pour authentifier l'administrateur via Keycloak et TOTP. Le jeton Matrix obtenu est gardé dans le terminal courant ; fermez la session ou exécutez `unset KIBARE_ADMIN_TOKEN` après usage.
 
-Le chiffrement de bout en bout dépend de son activation dans les salons Matrix. La configuration actuelle constitue un prototype local et ne doit pas être considérée comme une infrastructure de production auditée.
+```bash
+export KIBARE_ADMIN_TOKEN="$(python3 scripts/kibare_admin.py login admin)"
+python3 scripts/kibare_admin.py enroll agent.dsi --display-name "Agent DSI"
+python3 scripts/kibare_admin.py create-room --name "Équipe DSI" \
+  --invite @agent.dsi:kibare.test
+# Copier l'identifiant !...:kibare.test renvoyé par create-room.
+python3 scripts/kibare_admin.py set-room-role \
+  '!copier-identifiant:kibare.test' @agent.dsi:kibare.test moderator
+python3 scripts/kibare_admin.py revoke @agent.dsi:kibare.test
+unset KIBARE_ADMIN_TOKEN
+```
 
-## Objectifs
+Les commandes `enroll`, `create-room`, `set-room-role` et `revoke` doivent être lancées par un administrateur. `enroll` crée l'identité Keycloak et associe (ou précrée) le compte Matrix ; le mot de passe temporaire est saisi sans écho, puis changé par l'agent à sa première connexion. L'agent configure alors son authentificateur TOTP. Les identifiants déjà existants dans Matrix peuvent être migrés en enrôlant le même nom. Seuls les rôles `member` et `moderator` sont attribuables dans un salon. Les instructions détaillées figurent dans [scripts/README.md](scripts/README.md) et les options sont dans `python3 scripts/kibare_admin.py --help`.
 
-- Faciliter les communications institutionnelles sécurisées.
-- Favoriser la maîtrise de l'infrastructure par l'organisation qui l'héberge.
-- S'appuyer sur un protocole ouvert et interopérable.
-- Explorer la gestion des identités, des accès et des révocations de sessions.
+## Vérifications
 
-## État du projet
+```bash
+docker compose config -q
+python3 -m unittest discover -s tests -v
+bash -n start.sh
+```
 
-Kibare est actuellement au stade de prototype technique.
+Les tests unitaires couvrent les identifiants locaux, les politiques des salons/rôles et la configuration TOTP d'enrôlement. En complément, l'équipe a rapporté un essai positif de connexion agent avec OTP et de révocation des sessions des appareils testés. Les tests automatisés ne démontrent pas le chiffrement E2EE ni la restauration ; les essais manuels restant à faire sont listés dans [tests/README](tests/README).
 
-Les composants principaux - Synapse, PostgreSQL et Element Web - sont configurés et orchestrés avec Docker Compose.
+## Technologies et licence
 
-Plusieurs fonctionnalités restent à développer ou à valider, notamment :
+Le code Kibare est publié sous **MIT**. Les composants tiers conservent leurs licences respectives ; leurs versions et liens sont recensés dans [docs/open-source.md](docs/open-source.md).
 
-- Gestion avancée des identités et des rôles.
-- Gestion des accès et révocation des sessions.
-- Déploiement HTTPS avec nom de domaine.
-- Supervision et journalisation.
-- Sauvegarde et restauration des données.
-- Audit de sécurité.
-
-## Documentation
-
-Le dossier `docs/` contient :
-
-- `architecture.md` - Présentation de l'architecture technique.
-- `security.md` - Mesures de sécurité et limites actuelles.
-- `progress.md` - État d'avancement du projet.
-
-D'autres guides sont disponibles :
-
-- `synapse/README` - Guide de configuration du serveur Matrix.
-- `tests/README` - Procédures de vérification et de test.
-
-## Contribution
-
-Les retours, tests et contributions des membres de l'équipe sont les bienvenus.
-
-Avant toute modification, vérifier les consignes de configuration et de sécurité présentes dans la documentation.
-
-## Licence
-
-La licence du projet reste à définir. Le fichier `LICENSE` sera ajouté après validation du choix de licence.
+**Engagement : Étendre et adapter.** Kibare adapte l'écosystème Matrix/Element existant pour un usage institutionnel plutôt que de développer une cryptographie ou un protocole propriétaire.

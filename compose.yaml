@@ -21,20 +21,78 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      keycloak:
+        condition: service_healthy
     volumes:
       - ./synapse/data:/data
     ports:
       - "127.0.0.1:8008:8008"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8008/_matrix/client/versions', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  keycloak:
+    image: quay.io/keycloak/keycloak@sha256:3617b09bb4b7510a8d8d9b9fc5707399e2d70688dbcc2f8fb013a144829be1b9
+    restart: unless-stopped
+    command:
+      - start-dev
+      - --import-realm
+      - --hostname=http://127.0.0.1:8082
+      - --http-enabled=true
+      - --hostname-strict=false
+      - --health-enabled=true
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:?Définir KEYCLOAK_ADMIN_USERNAME dans .env}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Définir KEYCLOAK_ADMIN_PASSWORD dans .env}
+    volumes:
+      - kibare_keycloak_data:/opt/keycloak/data
+      - ./keycloak/import:/opt/keycloak/data/import:ro
+    ports:
+      - "127.0.0.1:8082:8080"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000 && printf \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3 && grep -q \"200 OK\" <&3'"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 45s
 
   element:
     image: vectorim/element-web@sha256:b0aa4b5a4fc1afaaff62e2dbd0c92d57e2b20724f3ccb2fef53aae949088c3d2
     restart: unless-stopped
     depends_on:
-      - synapse
+      synapse:
+        condition: service_healthy
     volumes:
       - ./element/config.json:/app/config.json:ro
     ports:
       - "127.0.0.1:8080:80"
 
+  portal:
+    image: nginx:1.29.3-alpine
+    restart: unless-stopped
+    depends_on:
+      synapse:
+        condition: service_healthy
+    volumes:
+      - ./portal:/usr/share/nginx/html:ro
+      - ./portal/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:8081:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
 volumes:
   kibare_postgres_data:
+  kibare_keycloak_data:

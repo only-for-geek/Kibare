@@ -1,193 +1,89 @@
 # Tests et validation de Kibare
 
-## 1. Objectif
+Les commandes sont à lancer depuis la racine du projet. Les tests fonctionnels et de sécurité ne doivent utiliser que des données et comptes fictifs.
 
-Ce document décrit les procédures de vérification du prototype Kibare.
+## Tests automatiques locaux
 
-L'objectif est de permettre aux développeurs de contrôler le bon fonctionnement des composants et de détecter les éventuelles erreurs de configuration.
+```bash
+python3 -m unittest discover -s tests -v
+bash -n start.sh
+```
 
-Les tests sont à effectuer depuis la racine du projet.
+Les tests unitaires couvrent la validation des identifiants locaux, la politique des salons chiffrés/non fédérés, les rôles et les exigences TOTP des identités Keycloak. Ils ne contactent pas Keycloak ou Synapse et ne prouvent pas le parcours MFA effectif.
 
-## 2. Prérequis
+## Configuration et services
 
-Avant de commencer, vérifier que les éléments suivants sont installés :
-
-- Docker Engine.
-- Docker Compose (plugin `docker compose`).
-- Git.
-
-Le projet doit avoir été récupéré et initialisé conformément aux instructions du fichier `synapse/README`.
-
-## 3. Vérification de la configuration Docker
-
-Vérifier que le fichier Compose est valide :
+Valider la configuration Compose :
 
 ```bash
 docker compose config -q
-```
-
-Cette commande doit se terminer sans erreur.
-
-Afficher les images utilisées :
-
-```bash
-docker compose config --images
-```
-
-Vérifier que les services attendus sont déclarés :
-
-```bash
 docker compose config --services
 ```
 
-Résultat attendu :
-
-```text
-db
-synapse
-element
-```
-
-## 4. Vérification de l'état des services
-
-Démarrer l'ensemble des services :
-
-```bash
-docker compose up -d
-```
-
-Afficher leur état :
+Services attendus : `db`, `keycloak`, `synapse`, `element`, `portal`. Après démarrage, consulter l'état et les journaux :
 
 ```bash
 docker compose ps
-```
-
-Les conteneurs doivent être démarrés. Le service PostgreSQL doit notamment être indiqué comme sain (*healthy*) après son initialisation.
-
-Consulter les journaux en cas de problème :
-
-```bash
 docker compose logs --tail=100
 ```
 
-Pour consulter les journaux d'un service particulier :
-
-```bash
-docker compose logs --tail=100 synapse
-docker compose logs --tail=100 db
-docker compose logs --tail=100 element
-```
-
-## 5. Vérification de Synapse
-
-Vérifier que Synapse peut analyser son fichier de configuration :
-
-```bash
-docker compose run --rm --no-deps \
-  --entrypoint python synapse \
-  -m synapse.config \
-  -c /data/homeserver.yaml
-```
-
-Résultat attendu :
-
-```text
-Config parses OK!
-```
-
-Vérifier ensuite que l'API HTTP de Synapse répond :
+Vérifier Synapse, Keycloak et le portail :
 
 ```bash
 curl -i http://127.0.0.1:8008/_matrix/client/versions
+curl -i http://127.0.0.1:8082/realms/kibare/.well-known/openid-configuration
+curl -i http://127.0.0.1:8081/health/matrix
 ```
 
-Une réponse HTTP réussie avec un document JSON contenant les versions prises en charge indique que l'API est accessible.
+Ouvrir `http://127.0.0.1:8081` puis `http://127.0.0.1:8080`. Le témoin du portail confirme seulement la disponibilité de l'API Matrix.
 
-## 6. Vérification d'Element Web
+## Scénario fonctionnel avec comptes fictifs
 
-Ouvrir l'adresse suivante dans un navigateur :
+1. Créer le premier administrateur Matrix suivant les instructions du README.
+2. Ouvrir Element et choisir la connexion SSO Kibare ; connecter `admin` avec son mot de passe initial indiqué dans `.env`, puis configurer un authentificateur TOTP.
+3. Obtenir un jeton administrateur avec `python3 scripts/kibare_admin.py login NOM` ; authentifier dans le navigateur avec le mot de passe et le code TOTP.
+4. Enrôler deux agents fictifs avec `enroll`. Les comptes Matrix existants peuvent être migrés avec le même nom.
+5. Dans Element, vérifier que les nouveaux comptes doivent changer le mot de passe puis configurer TOTP lors de leur première connexion.
+6. Dans une fenêtre privée fraîche, vérifier que Keycloak demande le TOTP et qu'un code valide permet de continuer. Tester séparément un code invalide ou expiré.
+7. Créer un salon avec `create-room --name ... --invite @agent2:kibare.test`.
+8. Vérifier le chiffrement dans Element avant l'envoi d'un message ou fichier fictif.
+9. Vérifier la connexion/synchronisation des deux agents, puis les rôles avec `set-room-role`.
+10. Pendant un échange, révoquer l'un d'eux et vérifier qu'il ne peut plus ouvrir de session ni synchroniser de nouveaux événements.
 
-`http://127.0.0.1:8080`
+## Résultats manuels déjà rapportés
 
-Vérifier les points suivants :
+| Vérification | Résultat rapporté | Précision |
+|---|---|---|
+| Connexion d'un agent en fenêtre privée | Réussie ; le code OTP est demandé et un code valide permet de continuer. | Essai de l'équipe dans Element. Le refus d'un OTP erroné/expiré reste à tester. |
+| Révocation alors que des appareils sont connectés | Les appareils Element essayés perdent leur session après la révocation. | Essai de l'équipe. Les messages déjà synchronisés ou déchiffrés peuvent rester accessibles localement. |
 
-- La page Element Web s'affiche.
-- La marque Kibare est visible.
-- Le serveur `kibare.test` est proposé par défaut.
-- Le client peut communiquer avec le serveur Matrix.
+Une fenêtre privée fraîche sert à tester le MFA sans session navigateur Keycloak déjà existante. L'approbation d'un appareil Matrix pour ses clés E2EE est différente du TOTP : elle peut demander l'intervention d'un appareil déjà vérifié ou une clé de récupération, et ne remplace pas l'authentification.
 
-Une page qui s'affiche ne suffit pas à prouver que l'authentification et les échanges fonctionnent correctement.
+Dans Element, « Supprimer cet appareil » retire uniquement l'appareil courant. La révocation par `kibare_admin.py revoke` désactive le compte entier et invalide ses sessions ; ne pas la confondre avec l'option « Désactiver le compte » dans les paramètres Element.
 
-## 7. Tests fonctionnels
+## Vérifications sécurité requises
 
-Effectuer les vérifications suivantes depuis l'interface Element :
+- [ ] L'inscription publique et l'accès invité sont rejetés.
+- [x] La connexion OIDC impose un TOTP valide dans l'essai agent en fenêtre privée rapporté ci-dessus.
+- [ ] Un code TOTP invalide ou expiré est explicitement rejeté.
+- [x] L'API Matrix rejette la connexion directe `m.login.password` (vérification locale).
+- [ ] Les ports PostgreSQL ne sont pas publiés et les ports web sont liés à `127.0.0.1`.
+- [ ] `.env` et `synapse/data/` sont ignorés par Git (`git check-ignore -v .env synapse/data/homeserver.yaml`).
+- [ ] Les salons créés par l'outil sont privés, chiffrés, non fédérés et ont un historique réservé aux membres présents.
+- [ ] Messages et fichiers restent chiffrés en base, dans les médias et dans le trafic.
+- [x] La révocation a invalidé les sessions des appareils Element testés.
+- [ ] Refaire la révocation pendant une conversation et vérifier précisément les nouveaux événements, les caches et les clés E2EE.
+- [ ] L'équipe vérifie et documente les messages déjà déchiffrés qui restent dans le cache d'un appareil.
+- [ ] Une sauvegarde est restaurée dans un environnement isolé.
 
-- [ ] Création ou connexion à un compte utilisateur.
-- [ ] Création d'un salon de discussion.
-- [ ] Envoi et réception de messages.
-- [ ] Synchronisation des messages entre deux comptes.
-- [ ] Vérification du fonctionnement après redémarrage des services.
+**Limite importante :** les essais positifs MFA et révocation sont rapportés par l'équipe mais ne couvrent pas encore les OTP invalides, la démonstration E2EE, ni tous les appareils/clients. Keycloak est configuré en mode développement et en HTTP local, et Synapse ignore la validation des métadonnées OIDC. Ne pas utiliser de données réelles ni exposer les services.
 
-Pour valider correctement les échanges entre utilisateurs, utiliser au moins deux comptes distincts.
+## Arrêt
 
-## 8. Tests de sécurité
-
-Les vérifications suivantes sont à effectuer dans le cadre de la validation du prototype :
-
-- [ ] Vérifier que PostgreSQL n'est pas directement accessible depuis l'hôte.
-- [ ] Vérifier que les ports Synapse et Element sont liés à `127.0.0.1`.
-- [ ] Vérifier que `.env` est ignoré par Git.
-- [ ] Vérifier que `synapse/data/` est ignoré par Git.
-- [ ] Vérifier le chiffrement de bout en bout dans un salon compatible.
-- [ ] Vérifier le comportement après déconnexion et révocation d'une session.
-
-Pour vérifier que les fichiers sensibles sont ignorés :
-
-```bash
-git check-ignore -v .env
-git check-ignore -v synapse/data/homeserver.yaml
-```
-
-Ces commandes doivent indiquer les règles correspondantes de `.gitignore`.
-
-## 9. Vérification de la persistance
-
-Redémarrer les services :
-
-```bash
-docker compose restart
-```
-
-Vérifier que les données et les comptes sont toujours disponibles après le redémarrage.
-
-Cette vérification ne remplace pas un véritable test de sauvegarde et de restauration.
-
-## 10. Nettoyage de l'environnement
-
-Pour arrêter les services sans supprimer les données persistantes :
+Pour arrêter sans supprimer les données persistantes :
 
 ```bash
 docker compose stop
 ```
 
-Pour les redémarrer ultérieurement :
-
-```bash
-docker compose up -d
-```
-
-**Attention :** ne pas utiliser `docker compose down -v` dans un environnement contenant des données à conserver. Cette commande supprime également les volumes Docker associés au projet.
-
-## 11. Résultats des tests
-
-Les résultats doivent être consignés au fur et à mesure de leur exécution.
-
-Pour chaque test, noter :
-
-- La date d'exécution.
-- L'environnement utilisé.
-- Le résultat obtenu.
-- Les éventuelles erreurs rencontrées.
-- Les corrections apportées.
-
-Un test ne doit être considéré comme validé qu'après avoir été réellement exécuté et vérifié.
+Éviter `docker compose down -v` sauf si la suppression du volume PostgreSQL est expressément voulue.

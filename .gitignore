@@ -6,7 +6,13 @@
 # Données persistantes et clés Synapse
 synapse/data/
 postgres/data/
+keycloak/import/
 
 # Dépendances et fichiers locaux
 node_modules/
 .DS_Store
+__pycache__/
+*.py[cod]
+
+# Tous les fichiers pdf
+*.pdf
