@@ -177,7 +177,47 @@ body.has-bg-photo .welcome-viewport {
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+/* Temoin statut serveur Matrix */
+.server-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 550;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.90);
+  user-select: none;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.status-dot.status-checking {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+}
+
+.status-dot.status-online {
+  background: #0dbd8b;
+  box-shadow: 0 0 6px rgba(13, 189, 139, 0.7);
+}
+
+.status-dot.status-offline {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.7);
 }
 
 /* Boutons */

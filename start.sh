@@ -538,7 +538,9 @@ info "État des services :"
 docker compose ps
 
 printf '\nKibare est démarré.\n'
+printf 'Accueil        : http://127.0.0.1:8081\n'
+printf 'Double facteur : http://127.0.0.1:8081/setup-2fa.html\n'
+printf 'Administration : http://127.0.0.1:8081/admin.html\n'
 printf 'Element Web    : http://127.0.0.1:8080\n'
 printf 'Matrix API     : http://127.0.0.1:8008\n'
-printf 'Portail        : http://127.0.0.1:8081\n'
-printf 'Administration : http://127.0.0.1:8081/admin.html\n'
+printf 'Keycloak OIDC  : http://127.0.0.1:8082\n'
