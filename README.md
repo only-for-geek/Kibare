@@ -1,17 +1,19 @@
-# Kibare — messagerie institutionnelle souveraine
+# Kibare : messagerie institutionnelle souveraine
 
 Kibare est un prototype de messagerie pour les agents publics, construit sur le protocole ouvert Matrix. Il associe Synapse, Element Web et PostgreSQL dans une installation locale contrôlée par l'organisation. L'interface d'accueil en français met en avant l'état du serveur et les accès utiles ; Element reste le client de conversation.
 
-> **Prototype de sélection — pas prêt pour des échanges réels.** L'équipe a rapporté un essai positif de connexion agent avec TOTP et la perte des sessions Element testées après révocation. Le chiffrement E2EE n'a pas encore été démontré dans le stockage ; Synapse contourne aussi la validation stricte des métadonnées OIDC pour permettre HTTP local. Utilisez exclusivement des comptes, fichiers et messages fictifs, et ne publiez pas les services.
+> **Prototype de sélection (non destiné à des échanges réels).** L'équipe a rapporté un essai positif de connexion agent avec TOTP et la perte des sessions Element testées après révocation. Le chiffrement E2EE n'a pas encore été démontré dans le stockage ; Synapse contourne aussi la validation stricte des métadonnées OIDC pour permettre HTTP local. Utilisez exclusivement des comptes, fichiers et messages fictifs, et ne publiez pas les services.
 
 ## Ce qui est déjà en place
 
-- **Déploiement autonome :** Docker Compose, PostgreSQL persistant et services publiés uniquement sur `127.0.0.1`.
-- **Inscription maîtrisée :** l'inscription libre, les invités et la fédération sont désactivés lors du lancement ; les agents sont créés par un administrateur.
-- **Authentification à deux facteurs :** Keycloak fournit l'authentification OIDC et impose la configuration TOTP avant l'accès. Les mots de passe Matrix ne permettent plus de connexion directe.
-- **Salons institutionnels :** l'outil d'administration crée des salons privés, non fédérés, chiffrés avec Megolm et limités à l'historique depuis l'adhésion.
-- **Contrôle d'accès :** enrôlement, révocation des sessions et rôles membre/modérateur par salon.
-- **Interface Kibare :** accueil responsive en français et client Element configuré avec l'identité visuelle Kibare.
+| Domaine | Réalisation |
+|---|---|
+| Déploiement autonome | Docker Compose, PostgreSQL persistant et services publiés uniquement sur `127.0.0.1`. |
+| Inscription maîtrisée | L'inscription libre, les invités et la fédération sont désactivés au démarrage ; les agents sont créés par un administrateur. |
+| Authentification à deux facteurs | Keycloak fournit l'authentification OIDC. La double authentification TOTP est proposée à chaque utilisateur via le portail ; l'administrateur peut l'imposer à un compte spécifique depuis la console d'administration. |
+| Salons institutionnels | L'outil d'administration crée des salons privés, non fédérés, chiffrés avec Megolm et limités à l'historique depuis l'adhésion. |
+| Contrôle d'accès | Enrôlement, révocation des sessions et rôles membre ou modérateur par salon. |
+| Interface Kibare | Accueil en français, console d'administration web, page dédiée pour activer la double authentification et Element configuré aux couleurs Kibare. |
 
 Le TOTP est le facteur d'authentification Keycloak. L'approbation cryptographique d'un nouvel appareil Matrix, lorsqu'elle est nécessaire pour les clés E2EE, est un mécanisme distinct. Voir l'[état de validation](docs/progress.md), la [revue du brief](docs/requirements-review.md) et les [scénarios de test](tests/README).
 
@@ -33,6 +35,8 @@ Le script génère les secrets locaux, initialise Synapse si nécessaire, vérif
 | Service | Adresse locale |
 |---|---|
 | Accueil Kibare | http://127.0.0.1:8081 |
+| Configuration double facteur (2FA) | http://127.0.0.1:8081/setup-2fa.html |
+| Console d'administration web | http://127.0.0.1:8081/admin.html |
 | Messagerie Element | http://127.0.0.1:8080 |
 | API Matrix | http://127.0.0.1:8008 |
 | Identité et MFA Keycloak | http://127.0.0.1:8082 |
@@ -54,7 +58,7 @@ Le compte `admin` est également précréé dans le realm Keycloak `kibare`. Pou
 awk -F= '$1 == "KIBARE_INITIAL_ADMIN_PASSWORD" { print $2 }' .env
 ```
 
-Connectez-vous ensuite dans Element avec le bouton SSO **Kibare** et l'identifiant `admin`. Keycloak exige la configuration d'une application d'authentification TOTP. Après ce premier enrôlement MFA, cette même identité OIDC est associée au compte Matrix administrateur.
+Connectez-vous ensuite dans Element avec le bouton SSO **Kibare** et l'identifiant `admin`. Keycloak demande le changement de mot de passe temporaire. Pour configurer la double authentification TOTP, rendez-vous sur `http://127.0.0.1:8081/setup-2fa.html` depuis le portail. Après ce premier enrôlement, cette même identité OIDC est associée au compte Matrix administrateur.
 
 ### Enrôler un agent et gérer un salon
 
@@ -72,7 +76,7 @@ python3 scripts/kibare_admin.py revoke @agent.dsi:kibare.test
 unset KIBARE_ADMIN_TOKEN
 ```
 
-Les commandes `enroll`, `create-room`, `set-room-role` et `revoke` doivent être lancées par un administrateur. `enroll` crée l'identité Keycloak et associe (ou précrée) le compte Matrix ; le mot de passe temporaire est saisi sans écho, puis changé par l'agent à sa première connexion. L'agent configure alors son authentificateur TOTP. Les identifiants déjà existants dans Matrix peuvent être migrés en enrôlant le même nom. Seuls les rôles `member` et `moderator` sont attribuables dans un salon. Les instructions détaillées figurent dans [scripts/README.md](scripts/README.md) et les options sont dans `python3 scripts/kibare_admin.py --help`.
+Les commandes `enroll`, `create-room`, `set-room-role` et `revoke` doivent être lancées par un administrateur. `enroll` crée l'identité Keycloak et associe (ou précrée) le compte Matrix ; le mot de passe temporaire est saisi sans écho, puis changé par l'agent à sa première connexion. L'agent configure ensuite son authentificateur TOTP depuis l'accueil ou le lien dédié s'il le souhaite, ou selon l'exigence définie par l'administrateur. Les identifiants déjà existants dans Matrix peuvent être migrés en enrôlant le même nom. Seuls les rôles `member` et `moderator` sont attribuables dans un salon. Les instructions détaillées figurent dans [scripts/README.md](scripts/README.md) et les options sont dans `python3 scripts/kibare_admin.py --help`.
 
 ## Vérifications
 
