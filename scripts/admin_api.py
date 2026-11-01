@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Kibare Admin API — backend interne léger.
+"""Kibare Admin API : backend interne léger.
 
 Ce serveur HTTP tourne exclusivement sur le réseau Docker interne.
 Il n'est jamais exposé directement à l'extérieur ; seul nginx (portal)
 y accède via un proxy sur /api/.
 
 Variables d'environnement attendues (injectées par Docker Compose) :
-  SYNAPSE_BASE_URL                    — ex. http://synapse:8008
-  SYNAPSE_REGISTRATION_SHARED_SECRET  — clé partagée du homeserver.yaml
-  KEYCLOAK_BASE_URL                   — ex. http://keycloak:8080
-  KEYCLOAK_ADMIN_USERNAME             — identifiant de l'admin Keycloak
-  KEYCLOAK_ADMIN_PASSWORD             — mot de passe de l'admin Keycloak
-  SERVER_NAME                         — domaine Matrix (ex. kibare.test)
+  SYNAPSE_BASE_URL                    : ex. http://synapse:8008
+  SYNAPSE_REGISTRATION_SHARED_SECRET  : clé partagée du homeserver.yaml
+  KEYCLOAK_BASE_URL                   : ex. http://keycloak:8080
+  KEYCLOAK_ADMIN_USERNAME             : identifiant de l'admin Keycloak
+  KEYCLOAK_ADMIN_PASSWORD             : mot de passe de l'admin Keycloak
+  SERVER_NAME                         : domaine Matrix (ex. kibare.test)
 """
 
 import hashlib
@@ -21,13 +21,12 @@ import json
 import os
 import re
 import threading
+import uuid
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, quote
 from urllib.request import Request, urlopen
 
-# ---------------------------------------------------------------------------
 # Configuration depuis l'environnement
-# ---------------------------------------------------------------------------
 
 SYNAPSE_URL = os.environ.get("SYNAPSE_BASE_URL", "http://synapse:8008")
 REG_SECRET = os.environ.get("SYNAPSE_REGISTRATION_SHARED_SECRET", "")
@@ -39,7 +38,7 @@ LISTEN_PORT = int(os.environ.get("ADMIN_API_PORT", "8000"))
 
 USERNAME_RE = re.compile(r"^[a-z0-9._=-]{1,64}$")
 
-# User technique interne — masqué dans l'interface
+# User technique interne : masqué dans l'interface
 _TECH_USER = "kibare_internal_api"
 
 # Verrous
@@ -49,9 +48,7 @@ _synapse_token_cache: str | None = None
 _synapse_token_lock = threading.Lock()
 
 
-# ---------------------------------------------------------------------------
 # Helpers HTTP bas niveau (stdlib uniquement)
-# ---------------------------------------------------------------------------
 
 class APIError(Exception):
     def __init__(self, message: str, status: int = 400):
@@ -83,9 +80,7 @@ def _json_request(method: str, url: str, payload=None, headers: dict | None = No
         raise APIError(f"Connexion impossible : {exc.reason}", 503) from exc
 
 
-# ---------------------------------------------------------------------------
 # Keycloak
-# ---------------------------------------------------------------------------
 
 def _kc_authenticate() -> str:
     global _kc_token
@@ -141,21 +136,40 @@ def kc_list_users() -> list:
     return _kc_call("GET", "/admin/realms/kibare/users?max=200")
 
 
-def kc_create_user(username: str, display_name: str, password: str) -> str:
+def kc_create_user(username: str, display_name: str, password: str, require_totp: bool = False) -> str:
     first, _, last = display_name.partition(" ")
+    required_actions = ["UPDATE_PASSWORD"]
+    if require_totp:
+        required_actions.append("CONFIGURE_TOTP")
     _kc_call("POST", "/admin/realms/kibare/users", {
         "username": username,
         "enabled": True,
         "emailVerified": True,
         "firstName": first,
         "lastName": last or first,
-        "requiredActions": [],
+        "requiredActions": required_actions,
         "credentials": [{"type": "password", "value": password, "temporary": True}],
     })
     user = kc_find_user(username)
     if not user or not user.get("id"):
         raise APIError("Compte Keycloak créé sans identifiant récupérable.", 500)
     return user["id"]
+
+
+def kc_toggle_totp(username: str, require_totp: bool) -> None:
+    user = kc_find_user(username)
+    if not user:
+        raise APIError(f"Utilisateur Keycloak « {username} » introuvable.", 404)
+    uid = quote(user["id"], safe="")
+    actions = list(user.get("requiredActions") or [])
+    if require_totp:
+        if "CONFIGURE_TOTP" not in actions:
+            actions.append("CONFIGURE_TOTP")
+    else:
+        actions = [a for a in actions if a != "CONFIGURE_TOTP"]
+    user_payload = dict(user)
+    user_payload["requiredActions"] = actions
+    _kc_call("PUT", f"/admin/realms/kibare/users/{uid}", user_payload)
 
 
 def kc_deactivate_user(username: str) -> None:
@@ -176,12 +190,10 @@ def kc_delete_user(user_id: str) -> None:
     _kc_call("DELETE", f"/admin/realms/kibare/users/{quote(user_id, safe='')}")
 
 
-# ---------------------------------------------------------------------------
 # Synapse (shared secret nonce-MAC pour token admin interne)
-# ---------------------------------------------------------------------------
 
 def _get_synapse_admin_token() -> str:
-    """Retourne (en créant si besoin) le token du user technique interne."""
+    """Retourne (en créant un compte admin dédié si besoin) le token Synapse interne."""
     global _synapse_token_cache
     with _synapse_token_lock:
         if _synapse_token_cache:
@@ -190,44 +202,37 @@ def _get_synapse_admin_token() -> str:
         if not REG_SECRET:
             raise APIError("SYNAPSE_REGISTRATION_SHARED_SECRET manquant.", 500)
 
-        nonce_data = _json_request("GET", f"{SYNAPSE_URL}/_synapse/admin/v1/register")
-        nonce = nonce_data.get("nonce", "")
-        password = "INTERNAL_API_ONLY"
+        for _ in range(3):
+            tech_user = f"sys_api_{uuid.uuid4().hex[:8]}"
+            nonce_data = _json_request("GET", f"{SYNAPSE_URL}/_synapse/admin/v1/register")
+            nonce = nonce_data.get("nonce", "")
+            password = "INTERNAL_API_ONLY"
 
-        mac = hmac.new(REG_SECRET.encode("utf-8"), digestmod=hashlib.sha1)
-        mac.update(nonce.encode("utf-8"))
-        mac.update(b"\x00")
-        mac.update(_TECH_USER.encode("utf-8"))
-        mac.update(b"\x00")
-        mac.update(password.encode("utf-8"))
-        mac.update(b"\x00")
-        mac.update(b"admin")
+            mac = hmac.new(REG_SECRET.encode("utf-8"), digestmod=hashlib.sha1)
+            mac.update(nonce.encode("utf-8"))
+            mac.update(b"\x00")
+            mac.update(tech_user.encode("utf-8"))
+            mac.update(b"\x00")
+            mac.update(password.encode("utf-8"))
+            mac.update(b"\x00")
+            mac.update(b"admin")
 
-        try:
-            result = _json_request("POST", f"{SYNAPSE_URL}/_synapse/admin/v1/register", {
-                "nonce": nonce,
-                "username": _TECH_USER,
-                "password": password,
-                "admin": True,
-                "mac": mac.hexdigest(),
-            })
-        except APIError as exc:
-            if exc.status == 400:
-                # User déjà créé lors d'un démarrage précédent mais token perdu.
-                # On force la recrédentialisation en passant par le login
-                # direct (shared-secret login endpoint).
-                raise APIError(
-                    "Le token interne Synapse a été perdu après un redémarrage. "
-                    "Relance complète requise : docker compose down -v && ./start.sh",
-                    500,
-                ) from exc
-            raise
+            try:
+                result = _json_request("POST", f"{SYNAPSE_URL}/_synapse/admin/v1/register", {
+                    "nonce": nonce,
+                    "username": tech_user,
+                    "password": password,
+                    "admin": True,
+                    "mac": mac.hexdigest(),
+                })
+                token = result.get("access_token")
+                if token:
+                    _synapse_token_cache = token
+                    return token
+            except APIError:
+                continue
 
-        token = result.get("access_token")
-        if not token:
-            raise APIError("Synapse n'a pas retourné de token interne.", 500)
-        _synapse_token_cache = token
-        return token
+        raise APIError("Impossible d'obtenir un jeton d'administration Synapse.", 500)
 
 
 def synapse_admin(method: str, path: str, payload=None) -> dict:
@@ -263,9 +268,17 @@ def synapse_deactivate_user(username: str) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
+def synapse_user_exists(username: str) -> bool:
+    """Vérifie si un compte Synapse existe (actif ou désactivé)."""
+    user_id = f"@{username}:{SERVER_NAME}"
+    try:
+        result = synapse_admin("GET", f"/_synapse/admin/v2/users/{quote(user_id, safe='')}")
+        return bool(result.get("name"))
+    except APIError:
+        return False
+
+
 # Handlers HTTP
-# ---------------------------------------------------------------------------
 
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
@@ -317,7 +330,9 @@ class AdminAPIHandler(http.server.BaseHTTPRequestHandler):
                 self._handle_enroll()
             elif path == "/api/revoke" and method == "POST":
                 self._handle_revoke()
-            elif path == "/health" and method == "GET":
+            elif path == "/api/toggle-totp" and method == "POST":
+                self._handle_toggle_totp()
+            elif path in ("/health", "/api/health") and method == "GET":
                 self._send_json(200, {"status": "ok"})
             else:
                 self._send_json(404, {"error": "Route inconnue."})
@@ -335,10 +350,9 @@ class AdminAPIHandler(http.server.BaseHTTPRequestHandler):
     def do_OPTIONS(self):  # noqa: N802
         self._route("OPTIONS")
 
-    # ------------------------------------------------------------------
 
     def _handle_list_users(self) -> None:
-        """GET /api/users — liste les agents (hors user technique interne)."""
+        """GET /api/users : liste les agents (hors user technique interne)."""
         synapse_users = synapse_list_users()
         kc_users = kc_list_users()
         kc_map = {u["username"]: u for u in kc_users}
@@ -349,9 +363,22 @@ class AdminAPIHandler(http.server.BaseHTTPRequestHandler):
             if not name.startswith("@"):
                 continue
             username = name[1:].split(":", 1)[0]
-            if username == _TECH_USER:
-                continue  # masquer le user technique
+            if username == _TECH_USER or username.startswith("sys_"):
+                continue  # masquer les comptes techniques internes
             kc = kc_map.get(username, {})
+            req_actions = kc.get("requiredActions") or []
+            totp_required = "CONFIGURE_TOTP" in req_actions
+            has_totp = False
+            if kc.get("id"):
+                try:
+                    creds = _kc_call(
+                        "GET",
+                        f"/admin/realms/kibare/users/{quote(kc['id'], safe='')}/credentials",
+                    )
+                    has_totp = any(c.get("type") == "otp" for c in creds)
+                except Exception:
+                    pass
+
             result.append({
                 "user_id": name,
                 "username": username,
@@ -359,20 +386,23 @@ class AdminAPIHandler(http.server.BaseHTTPRequestHandler):
                 "admin": u.get("admin", False),
                 "deactivated": u.get("deactivated", False),
                 "kc_enabled": kc.get("enabled", False),
+                "totp_required": totp_required,
+                "has_totp": has_totp,
                 "last_seen_ts": u.get("last_seen_ts"),
             })
         self._send_json(200, {"users": result})
 
     def _handle_enroll(self) -> None:
-        """POST /api/enroll — crée un compte dans Keycloak et Synapse."""
+        """POST /api/enroll : crée un compte dans Keycloak et Synapse."""
         data = self._read_json()
         username = (data.get("username") or "").strip().lower()
         display_name = (data.get("display_name") or "").strip()
         password = data.get("password") or ""
+        require_totp = bool(data.get("require_totp", False))
 
         if not username or not USERNAME_RE.fullmatch(username):
             raise APIError(
-                "Identifiant invalide : lettres minuscules, chiffres, '.', '_' ou '-', 1–64 caractères."
+                "Identifiant invalide : lettres minuscules, chiffres, '.', '_' ou '-', 1 à 64 caractères."
             )
         if not display_name:
             raise APIError("Le nom complet est requis.")
@@ -383,12 +413,20 @@ class AdminAPIHandler(http.server.BaseHTTPRequestHandler):
 
         existing = kc_find_user(username)
         if existing:
-            raise APIError(f"L'identifiant « {username} » existe déjà dans Keycloak.", 409)
+            if existing.get("enabled", True):
+                # Compte actif : vrai conflit
+                raise APIError(f"L'identifiant « {username} » est déjà actif dans Keycloak.", 409)
+            # Compte révoqué : le supprimer pour permettre la réinscription
+            kc_delete_user(existing["id"])
 
-        kc_uid = kc_create_user(username, display_name, password)
+        kc_uid = kc_create_user(username, display_name, password, require_totp=require_totp)
 
         try:
-            synapse_create_user(username, display_name)
+            if synapse_user_exists(username):
+                # Réactiver le compte Synapse existant (Synapse ne supprime jamais vraiment les users)
+                synapse_create_user(username, display_name)
+            else:
+                synapse_create_user(username, display_name)
         except APIError as exc:
             # Compensation : supprime le compte Keycloak si Synapse échoue
             try:
@@ -397,17 +435,35 @@ class AdminAPIHandler(http.server.BaseHTTPRequestHandler):
                 pass
             raise APIError(f"Synapse : {exc}. Le compte Keycloak a été supprimé.") from exc
 
+        totp_msg = (
+            "Configuration 2FA (TOTP) exigée à la première connexion."
+            if require_totp
+            else "Configuration 2FA (TOTP) optionnelle."
+        )
         self._send_json(201, {
             "ok": True,
             "user_id": f"@{username}:{SERVER_NAME}",
-            "message": (
-                f"Compte « {username} » créé. "
-                "L'agent devra changer son mot de passe à la première connexion (TOTP optionnel)."
-            ),
+            "message": f"Compte « {username} » créé avec succès. {totp_msg}",
+        })
+
+    def _handle_toggle_totp(self) -> None:
+        """POST /api/toggle-totp : active ou désactive l'exigence TOTP pour un compte."""
+        data = self._read_json()
+        username = (data.get("username") or "").strip().lower()
+        require_totp = bool(data.get("require_totp", False))
+        if not username:
+            raise APIError("Le champ « username » est requis.")
+        kc_toggle_totp(username, require_totp)
+        status_label = "exigée à la connexion" if require_totp else "rendue optionnelle"
+        self._send_json(200, {
+            "ok": True,
+            "username": username,
+            "totp_required": require_totp,
+            "message": f"Double authentification {status_label} pour « {username} ».",
         })
 
     def _handle_revoke(self) -> None:
-        """POST /api/revoke — désactive un compte dans Synapse et Keycloak."""
+        """POST /api/revoke : désactive un compte dans Synapse et Keycloak."""
         data = self._read_json()
         username = (data.get("username") or "").strip()
 
@@ -425,9 +481,7 @@ class AdminAPIHandler(http.server.BaseHTTPRequestHandler):
         })
 
 
-# ---------------------------------------------------------------------------
 # Point d'entrée
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     if not REG_SECRET:
@@ -435,7 +489,7 @@ if __name__ == "__main__":
     if not KC_ADMIN_PASS:
         raise SystemExit("[ERREUR] KEYCLOAK_ADMIN_PASSWORD est absent.")
 
-    print(f"[INFO] Kibare Admin API — démarrage sur 0.0.0.0:{LISTEN_PORT}", flush=True)
+    print(f"[INFO] Kibare Admin API : démarrage sur 0.0.0.0:{LISTEN_PORT}", flush=True)
 
     try:
         _get_synapse_admin_token()
