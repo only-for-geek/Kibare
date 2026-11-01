@@ -1,5 +1,6 @@
 {
   "brand": "Kibare",
+  "default_theme": "light",
   "default_server_config": {
     "m.homeserver": {
       "base_url": "http://127.0.0.1:8008",
@@ -10,6 +11,8 @@
     }
   },
   "disable_custom_urls": true,
+  "disable_registration": true,
+  "disable_3pid_login": true,
   "disable_guests": true,
   "default_country_code": "BF",
 

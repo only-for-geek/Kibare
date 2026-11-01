@@ -1,94 +1,40 @@
-# Sécurité de Kibare
+# Note de sécurité — Kibare
 
-## 1. Objectif
+**Périmètre :** prototype local du Sprint technique pré-Hackathon 2026. Cette note décrit les protections présentes dans le dépôt et leurs limites ; elle ne constitue ni un audit ni une autorisation à traiter des données réelles.
 
-La sécurité est un principe fondamental du projet Kibare. La plateforme s'appuie sur le protocole Matrix et sur une infrastructure auto-hébergeable afin de favoriser la maîtrise des communications et des données par l'organisation qui l'exploite.
+## Menaces prises en compte
 
-Ce document présente les mesures de sécurité actuellement mises en place, les limites connues du prototype et les améliorations nécessaires avant un déploiement institutionnel.
+| Menace | Mesures présentes | Limites restantes |
+|---|---|---|
+| Accès d'un utilisateur non enrôlé | Inscription libre et invités désactivés ; seuls les comptes créés par un administrateur sont admis. La fédération Synapse est désactivée. | L'administrateur et l'hôte Docker restent des autorités de confiance. |
+| Lecture des conversations par l'hébergeur | Les salons créés avec `kibare_admin.py create-room` activent Megolm (`m.megolm.v1.aes-sha2`) et ne sont pas fédérés. Element chiffre les événements et les pièces jointes dans un salon chiffré. | Cette intégration et l'absence de texte clair en base ou sur le réseau n'ont pas encore été démontrées. Un salon créé autrement peut ne pas être chiffré. |
+| Perte d'un appareil ou départ d'un agent | `revoke` désactive le compte et ses sessions dans Synapse, désactive l'identité Keycloak et ferme ses sessions SSO. Lors d'un essai manuel rapporté, les appareils Element déjà connectés ont perdu leur session après révocation. | La révocation ne peut pas effacer les messages déjà synchronisés, déchiffrés, exportés ou capturés sur un appareil. Le renouvellement des clés E2EE après révocation doit être examiné séparément. |
+| Usurpation d'identité | Connexion OIDC par Keycloak ; TOTP requis à l'enrôlement et lors du parcours de connexion testé. L'authentification par mot de passe Matrix est désactivée ; les mots de passe temporaires sont saisis sans écho. | L'essai positif MFA a été rapporté par l'équipe en navigation privée ; vérifier encore le refus d'un code erroné/expiré et les procédures de récupération. Le secret du compte bootstrap Keycloak est conservé dans `.env` et doit être protégé. |
+| Exposition réseau | PostgreSQL n'est pas publié ; accueil, Element et Synapse sont liés à `127.0.0.1`. Les salons créés par l'outil refusent la fédération. | Keycloak et Synapse utilisent HTTP local ; `skip_verification` contourne les contrôles de conformité des métadonnées OIDC pour ce prototype. Pas de TLS, reverse proxy de production, durcissement hôte ni validation multi-machine. Ne pas exposer les ports. |
+| Perte ou altération des données | PostgreSQL utilise un volume Docker persistant ; secrets et données Synapse sont ignorés par Git. | Aucune sauvegarde/restauration automatisée ou testée ; volume et serveur restent des points uniques de défaillance. |
 
-## 2. Mesures de sécurité actuelles
+## Données et métadonnées visibles par le serveur
 
-### 2.1. Protection des informations sensibles
+Dans un salon Matrix effectivement chiffré de bout en bout, Synapse stocke les événements chiffrés et ne possède pas les clés de déchiffrement des appareils. Element chiffre également le contenu des fichiers avant leur dépôt dans le stockage de médias. Cette propriété doit être vérifiée par inspection de la base, du stockage de fichiers et du trafic réseau avant toute présentation comme garantie acquise. Les salons non chiffrés exposent leur contenu au serveur.
 
-Les informations de configuration sensibles ne doivent pas être versionnées dans Git.
+Même pour un salon chiffré, l'hébergeur peut observer les identifiants des comptes, les adhésions/invitations et les changements de salons, les horaires et tailles approximatives des événements, les connexions/sessions, les adresses IP vues par le serveur, ainsi que l'activité de synchronisation. Il détient la base, les journaux, les clés de signature Synapse et les métadonnées nécessaires au routage. Les sauvegardes peuvent également contenir ces données. Les salons créés par l'outil limitent l'historique à la période depuis l'adhésion et ne fédèrent pas.
 
-Les dispositions actuelles comprennent :
+## Contrôles opérationnels
 
-- Utilisation d'un fichier `.env` pour stocker le mot de passe PostgreSQL.
-- Présence d'un fichier `.env.example` contenant uniquement une valeur indicative.
-- Exclusion de `.env` et des données générées par Synapse dans `.gitignore`.
+- Garder `.env`, `synapse/data/`, le jeton administrateur, les clés et sauvegardes hors du dépôt et hors des journaux partagés.
+- N'utiliser que des comptes et informations fictifs pendant les tests.
+- Pour tester un nouveau parcours MFA, utiliser une fenêtre privée fraîche ; la session SSO Keycloak déjà ouverte dans un navigateur peut éviter une nouvelle demande d'identifiants. Le code TOTP valide l'authentification et n'est pas l'approbation cryptographique d'un nouvel appareil Matrix.
+- Créer les salons de démonstration avec `kibare_admin.py create-room`, puis vérifier l'indicateur de chiffrement Element avant d'envoyer un message fictif.
+- Ne pas confondre l'état « serveur disponible » du portail avec une validation du chiffrement, de l'identité ou de la sécurité.
+- Ne pas publier les ports ni utiliser le prototype pour des communications de service réelles.
 
-Le fichier `.env` doit rester confidentiel et ne jamais être publié dans le dépôt.
+## Limites bloquantes avant production
 
-### 2.2. Isolation des services
+1. Compléter le test MFA positif rapporté par l'équipe avec un code OTP invalide/expiré, ainsi que les scénarios de récupération.
+2. Remplacer le mode développement Keycloak et HTTP local par un déploiement durci et TLS ; retirer `skip_verification` avant toute exposition hors de la machine.
+3. Démontrer le chiffrement des messages et fichiers par inspection de Synapse/PostgreSQL, du stockage de médias et du trafic.
+4. Documenter les limites observées après révocation : sessions terminées sur les appareils testés, mais contenus déjà reçus et déchiffrés non effaçables à distance.
+5. Définir les rôles institutionnels, le processus d'habilitation et la séparation des responsabilités au-delà des rôles par salon.
+6. Ajouter une politique de sauvegarde/restauration testée, supervision, mises à jour, rétention et audit indépendant.
 
-Les services sont exécutés dans des conteneurs Docker distincts.
-
-La configuration actuelle applique les principes suivants :
-
-- PostgreSQL n'expose aucun port directement sur l'hôte.
-- Synapse est accessible localement sur `127.0.0.1:8008`.
-- Element Web est accessible localement sur `127.0.0.1:8080`.
-- La communication entre Synapse et PostgreSQL s'effectue sur le réseau interne Docker.
-
-Cette configuration limite l'exposition réseau du prototype sur la machine hôte.
-
-### 2.3. Authentification et chiffrement
-
-Synapse fournit les mécanismes d'authentification et de gestion des sessions définis par Matrix.
-
-Matrix prend également en charge le chiffrement de bout en bout dans les salons compatibles lorsque celui-ci est activé.
-
-La présence de ces mécanismes ne constitue toutefois pas, à elle seule, une validation complète de la sécurité de Kibare. Leur configuration et leur fonctionnement doivent être vérifiés par des tests spécifiques.
-
-## 3. Limites actuelles
-
-Kibare est encore un prototype technique destiné à un environnement local.
-
-Les points suivants restent à examiner ou à renforcer :
-
-- Absence de configuration de production avec HTTPS.
-- Absence de reverse proxy intégré à la configuration actuelle.
-- Politique de sauvegarde et de restauration à définir et à tester.
-- Gestion avancée des rôles et des autorisations à développer.
-- Procédures de révocation des sessions et de gestion des appareils à valider.
-- Audit de sécurité global non encore réalisé.
-
-## 4. Recommandations avant un déploiement institutionnel
-
-Avant toute mise en production, les mesures suivantes devront être étudiées et mises en œuvre :
-
-### 4.1. Sécurité réseau et transport
-
-- Déployer un nom de domaine adapté.
-- Activer HTTPS avec des certificats TLS valides.
-- Mettre en place un reverse proxy correctement configuré.
-- Limiter l'exposition des ports et des services au strict nécessaire.
-- Définir les règles de pare-feu adaptées à l'infrastructure.
-
-### 4.2. Gestion des identités et des accès
-
-- Définir une politique de création et de gestion des comptes.
-- Mettre en place une gestion cohérente des rôles et des permissions.
-- Définir les procédures de désactivation des comptes et de révocation des sessions.
-- Examiner la possibilité d'intégrer une authentification renforcée selon les besoins institutionnels.
-
-### 4.3. Protection et continuité des données
-
-- Mettre en place des sauvegardes régulières de PostgreSQL et des données nécessaires à Synapse.
-- Protéger les sauvegardes contre les accès non autorisés.
-- Tester régulièrement les procédures de restauration.
-- Définir une politique de conservation des données.
-
-### 4.4. Supervision et maintenance
-
-- Surveiller l'état des services et les journaux.
-- Appliquer régulièrement les mises à jour de sécurité.
-- Épingler et contrôler les versions des images Docker.
-- Réaliser des audits et des tests de sécurité périodiques.
-
-## 5. Positionnement en matière de sécurité
-
-Kibare adopte une approche de sécurité progressive : les mesures déjà présentes dans le prototype constituent une base technique, mais ne suffisent pas à garantir un niveau de sécurité adapté à une exploitation institutionnelle.
-
-Toute mise en production devra être précédée d'une analyse des risques, de tests techniques et d'une validation des mécanismes de protection.
+Le TOTP s'appuie sur le mécanisme de Keycloak ; aucune cryptographie MFA n'est développée par Kibare. Le flux MFA positif et la perte des sessions Element après révocation ont été essayés manuellement par l'équipe ; ces essais ne démontrent ni le chiffrement E2EE effectif, ni l'effacement des caches locaux, ni la sécurité d'un déploiement de production. **Kibare reste un prototype ; n'utilisez aucune donnée réelle.**

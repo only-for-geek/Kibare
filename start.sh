@@ -26,6 +26,14 @@ error() {
     exit 1
 }
 
+file_checksum() {
+    docker run --rm \
+        -v "$DATA_DIR:/data:ro" \
+        --entrypoint python \
+        "$SYNAPSE_IMAGE" \
+        -c 'import hashlib; from pathlib import Path; print(hashlib.sha256(Path("/data/homeserver.yaml").read_bytes()).hexdigest())'
+}
+
 # --------------------------------------------------
 # 1. Vérification des prérequis
 # --------------------------------------------------
@@ -35,6 +43,9 @@ command -v docker >/dev/null 2>&1 \
 
 command -v openssl >/dev/null 2>&1 \
     || error "OpenSSL est nécessaire."
+
+command -v python3 >/dev/null 2>&1 \
+    || error "Python 3 est nécessaire pour préparer la configuration locale."
 
 docker compose version >/dev/null 2>&1 \
     || error "Le plugin Docker Compose est introuvable."
@@ -59,14 +70,19 @@ if [ ! -f "$ENV_FILE" ]; then
     info "Première installation : création du fichier .env."
 
     DB_PASSWORD="$(openssl rand -hex 32)"
+    REGISTRATION_SECRET="$(openssl rand -hex 32)"
+    KEYCLOAK_ADMIN_PASSWORD="$(openssl rand -hex 32)"
+    OIDC_CLIENT_SECRET="$(openssl rand -hex 32)"
+    INITIAL_ADMIN_PASSWORD="$(openssl rand -hex 32)"
 
     (
         umask 077
-        printf '# Mot de passe PostgreSQL de Kibare\nSYNAPSE_DB_PASSWORD=%s\n' \
-            "$DB_PASSWORD" > "$ENV_FILE"
+        printf '# Secrets locaux de Kibare\nSYNAPSE_DB_PASSWORD=%s\nSYNAPSE_REGISTRATION_SHARED_SECRET=%s\nKEYCLOAK_ADMIN_USERNAME=kcadmin\nKEYCLOAK_ADMIN_PASSWORD=%s\nSYNAPSE_OIDC_CLIENT_SECRET=%s\nKIBARE_INITIAL_ADMIN_PASSWORD=%s\n' \
+            "$DB_PASSWORD" "$REGISTRATION_SECRET" "$KEYCLOAK_ADMIN_PASSWORD" \
+            "$OIDC_CLIENT_SECRET" "$INITIAL_ADMIN_PASSWORD" > "$ENV_FILE"
     )
 
-    info "Secret PostgreSQL généré."
+    info "Secrets locaux générés."
 
 else
 
@@ -82,13 +98,109 @@ else
     [[ "$DB_PASSWORD" =~ ^[a-f0-9]{64}$ ]] \
         || error "Le mot de passe doit être une chaîne hexadécimale de 64 caractères. Ne le modifie pas sans adapter également la configuration Synapse et PostgreSQL."
 
+    REGISTRATION_SECRET="$(
+        sed -n 's/^SYNAPSE_REGISTRATION_SHARED_SECRET=//p' "$ENV_FILE" | head -n 1
+    )"
+
+    if [ -z "$REGISTRATION_SECRET" ]; then
+        REGISTRATION_SECRET="$(openssl rand -hex 32)"
+        (
+            umask 077
+            printf '\nSYNAPSE_REGISTRATION_SHARED_SECRET=%s\n' \
+                "$REGISTRATION_SECRET" >> "$ENV_FILE"
+        )
+        info "Secret local d'inscription administrative généré."
+    fi
+
+    [[ "$REGISTRATION_SECRET" =~ ^[a-f0-9]{64}$ ]] \
+        || error "SYNAPSE_REGISTRATION_SHARED_SECRET doit être une chaîne hexadécimale de 64 caractères."
+
+    read_env_value() {
+        sed -n "s/^$1=//p" "$ENV_FILE" | head -n 1
+    }
+
+    KEYCLOAK_ADMIN_USERNAME="$(read_env_value KEYCLOAK_ADMIN_USERNAME)"
+    if [ -z "$KEYCLOAK_ADMIN_USERNAME" ]; then
+        KEYCLOAK_ADMIN_USERNAME="kcadmin"
+        printf '\nKEYCLOAK_ADMIN_USERNAME=%s\n' "$KEYCLOAK_ADMIN_USERNAME" >> "$ENV_FILE"
+    fi
+    [[ "$KEYCLOAK_ADMIN_USERNAME" =~ ^[a-zA-Z0-9._-]{3,32}$ ]] \
+        || error "KEYCLOAK_ADMIN_USERNAME doit contenir 3 à 32 lettres, chiffres, points, tirets ou soulignés."
+
+    KEYCLOAK_ADMIN_PASSWORD="$(read_env_value KEYCLOAK_ADMIN_PASSWORD)"
+    if [ -z "$KEYCLOAK_ADMIN_PASSWORD" ]; then
+        KEYCLOAK_ADMIN_PASSWORD="$(openssl rand -hex 32)"
+        printf 'KEYCLOAK_ADMIN_PASSWORD=%s\n' "$KEYCLOAK_ADMIN_PASSWORD" >> "$ENV_FILE"
+    fi
+    [[ "$KEYCLOAK_ADMIN_PASSWORD" =~ ^[a-f0-9]{64}$ ]] \
+        || error "KEYCLOAK_ADMIN_PASSWORD doit être une chaîne hexadécimale de 64 caractères."
+
+    OIDC_CLIENT_SECRET="$(read_env_value SYNAPSE_OIDC_CLIENT_SECRET)"
+    if [ -z "$OIDC_CLIENT_SECRET" ]; then
+        OIDC_CLIENT_SECRET="$(openssl rand -hex 32)"
+        printf 'SYNAPSE_OIDC_CLIENT_SECRET=%s\n' "$OIDC_CLIENT_SECRET" >> "$ENV_FILE"
+    fi
+    [[ "$OIDC_CLIENT_SECRET" =~ ^[a-f0-9]{64}$ ]] \
+        || error "SYNAPSE_OIDC_CLIENT_SECRET doit être une chaîne hexadécimale de 64 caractères."
+
+    INITIAL_ADMIN_PASSWORD="$(read_env_value KIBARE_INITIAL_ADMIN_PASSWORD)"
+    if [ -z "$INITIAL_ADMIN_PASSWORD" ]; then
+        INITIAL_ADMIN_PASSWORD="$(openssl rand -hex 32)"
+        printf 'KIBARE_INITIAL_ADMIN_PASSWORD=%s\n' "$INITIAL_ADMIN_PASSWORD" >> "$ENV_FILE"
+    fi
+    [[ "$INITIAL_ADMIN_PASSWORD" =~ ^[a-f0-9]{64}$ ]] \
+        || error "KIBARE_INITIAL_ADMIN_PASSWORD doit être une chaîne hexadécimale de 64 caractères."
+
+    chmod 600 "$ENV_FILE"
+
 fi
+
+# Keycloak importe le realm une seule fois. Le fichier rendu contient des
+# secrets locaux et est ignoré par Git.
+IMPORT_DIR="$PROJECT_DIR/keycloak/import"
+mkdir -p "$IMPORT_DIR"
+KEYCLOAK_ADMIN_USERNAME="${KEYCLOAK_ADMIN_USERNAME:-$(sed -n 's/^KEYCLOAK_ADMIN_USERNAME=//p' "$ENV_FILE" | head -n 1)}"
+KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-$(sed -n 's/^KEYCLOAK_ADMIN_PASSWORD=//p' "$ENV_FILE" | head -n 1)}"
+OIDC_CLIENT_SECRET="${OIDC_CLIENT_SECRET:-$(sed -n 's/^SYNAPSE_OIDC_CLIENT_SECRET=//p' "$ENV_FILE" | head -n 1)}"
+INITIAL_ADMIN_PASSWORD="${INITIAL_ADMIN_PASSWORD:-$(sed -n 's/^KIBARE_INITIAL_ADMIN_PASSWORD=//p' "$ENV_FILE" | head -n 1)}"
+
+export KEYCLOAK_ADMIN_USERNAME KEYCLOAK_ADMIN_PASSWORD OIDC_CLIENT_SECRET INITIAL_ADMIN_PASSWORD
+python3 - "$PROJECT_DIR/keycloak/kibare-realm.json.template" "$IMPORT_DIR/kibare-realm.json" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+template = Path(sys.argv[1]).read_text()
+replacements = {
+    "__SYNAPSE_OIDC_CLIENT_SECRET__": os.environ["OIDC_CLIENT_SECRET"],
+    "__KIBARE_INITIAL_ADMIN_PASSWORD__": os.environ["INITIAL_ADMIN_PASSWORD"],
+}
+for marker, value in replacements.items():
+    template = template.replace(marker, value)
+if "__" in template:
+    raise SystemExit("Un marqueur secret du realm Keycloak n'a pas été remplacé.")
+json.loads(template)
+Path(sys.argv[2]).write_text(template)
+PY
+docker run --rm \
+    -v "$IMPORT_DIR:/import" \
+    --entrypoint python \
+    "$SYNAPSE_IMAGE" \
+    -c 'import os; from pathlib import Path; p=Path("/import/kibare-realm.json"); os.chown(p, 1000, 0); p.chmod(0o640); os.chown(p.parent, 1000, 0); p.parent.chmod(0o750)'
+
+unset INITIAL_ADMIN_PASSWORD
 
 # --------------------------------------------------
 # 3. Préparation des données Synapse
 # --------------------------------------------------
 
 mkdir -p "$DATA_DIR"
+
+CONFIG_HASH_BEFORE=""
+if [ -f "$CONFIG_FILE" ]; then
+    CONFIG_HASH_BEFORE="$(file_checksum)"
+fi
 
 if [ -f "$CONFIG_FILE" ] && [ ! -f "$SIGNING_KEY" ]; then
     error "homeserver.yaml existe, mais la clé de signature est absente. Intervention manuelle nécessaire."
@@ -126,6 +238,9 @@ if [ ! -f "$CONFIG_FILE" ]; then
     docker run --rm -i \
         -v "$DATA_DIR:/data" \
         -e SYNAPSE_DB_PASSWORD="$DB_PASSWORD" \
+        -e SYNAPSE_REGISTRATION_SHARED_SECRET="$REGISTRATION_SECRET" \
+        -e SYNAPSE_SERVER_NAME="$SERVER_NAME" \
+        -e SYNAPSE_OIDC_CLIENT_SECRET="$OIDC_CLIENT_SECRET" \
         --entrypoint python \
         "$SYNAPSE_IMAGE" - <<'PY'
 import os
@@ -149,59 +264,92 @@ config["database"] = {
         "cp_max": 10,
     },
 }
-
-# --- Souveraineté : aucun contact vers des serveurs externes ---
-
-# Supprimer matrix.org des serveurs de clés de confiance.
+config["registration_shared_secret"] = os.environ[
+    "SYNAPSE_REGISTRATION_SHARED_SECRET"
+]
+config["enable_registration"] = False
+config["enable_registration_without_verification"] = False
+config["allow_guest_access"] = False
+config["report_stats"] = False
+config["federation_domain_whitelist"] = []
 config["trusted_key_servers"] = []
 config["suppress_key_server_warning"] = True
-
-# Désactiver la fédération dans le listener HTTP.
-for listener in config.get("listeners", []):
-    for resource in listener.get("resources", []):
-        names = resource.get("names", [])
-        if "federation" in names:
-            names.remove("federation")
-
-# Les salons sont non-fédérés par défaut.
-config["default_federate"] = False
-
-# Bloquer la création de comptes : seul un admin peut créer des utilisateurs.
+config["public_baseurl"] = "http://127.0.0.1:8008/"
 config["enable_registration"] = False
+config["password_config"] = {"enabled": False}
+config["oidc_providers"] = [
+    {
+        "idp_id": "kibare",
+        "idp_name": "Kibare",
+        "discover": False,
+        "skip_verification": True,
+        "issuer": "http://127.0.0.1:8082/realms/kibare",
+        "client_id": "kibare-synapse",
+        "client_secret": os.environ["SYNAPSE_OIDC_CLIENT_SECRET"],
+        "authorization_endpoint": "http://127.0.0.1:8082/realms/kibare/protocol/openid-connect/auth",
+        "token_endpoint": "http://keycloak:8080/realms/kibare/protocol/openid-connect/token",
+        "userinfo_endpoint": "http://keycloak:8080/realms/kibare/protocol/openid-connect/userinfo",
+        "jwks_uri": "http://keycloak:8080/realms/kibare/protocol/openid-connect/certs",
+        "scopes": ["openid", "profile", "email"],
+        "allow_existing_users": True,
+        "enable_registration": False,
+        "user_profile_method": "userinfo_endpoint",
+        "backchannel_logout_enabled": True,
+        "user_mapping_provider": {
+            "config": {
+                "localpart_template": "{{ user.preferred_username }}",
+                "display_name_template": "{{ user.name }}",
+            }
+        },
+    }
+]
+config["sso"] = {
+    "client_whitelist": [
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:8766/callback",
+    ]
+}
 
-# --- Minimisation des métadonnées ---
+for listener in config.get("listeners", []):
+    resources = listener.get("resources", [])
+    for resource in resources:
+        resource["names"] = [
+            name for name in resource.get("names", []) if name != "federation"
+        ]
+    listener["resources"] = [
+        resource for resource in resources if resource.get("names")
+    ]
 
-# Désactiver la présence (statut en ligne/hors-ligne/dernière activité).
-config["presence"] = {"enabled": False}
-
-# Désactiver les aperçus d'URLs (évite les fuites IP vers des tiers).
-config["url_preview_enabled"] = False
-
-# Limiter la conservation des adresses IP de connexion (7 jours).
-config["user_ips_max_age"] = "7d"
-
-# Purge rapide des métadonnées des messages supprimés/caviardés (1 jour).
-config["redaction_retention_period"] = "1d"
-
-# Désactiver la collecte de statistiques internes d'usage.
-config["stats"] = {"enabled": False}
-
-path.write_text(
+temporary_path = path.with_suffix(".yaml.tmp")
+temporary_path.write_text(
     yaml.safe_dump(config, sort_keys=False, allow_unicode=True)
 )
+os.chown(temporary_path, 991, 991)
+temporary_path.chmod(0o640)
+temporary_path.replace(path)
+
+data_dir = Path("/data")
+os.chown(data_dir, -1, 991)
+os.chmod(data_dir, data_dir.stat().st_mode & 0o777 | 0o070)
+signing_key = data_dir / f"{os.environ['SYNAPSE_SERVER_NAME']}.signing.key"
+os.chown(signing_key, 991, 991)
+signing_key.chmod(0o640)
 PY
 
-    info "Configuration PostgreSQL appliquée."
+    info "Configuration PostgreSQL et politiques de sécurité appliquées."
 
 else
 
-    info "Configuration Synapse existante : conservation."
+    info "Configuration Synapse existante : vérification et application des politiques locales."
 
     # Vérifier que le mot de passe de la configuration correspond
     # à celui du fichier .env, sans afficher le secret.
     docker run --rm -i \
         -v "$DATA_DIR:/data" \
         -e SYNAPSE_DB_PASSWORD="$DB_PASSWORD" \
+        -e SYNAPSE_REGISTRATION_SHARED_SECRET="$REGISTRATION_SECRET" \
+        -e SYNAPSE_SERVER_NAME="$SERVER_NAME" \
+        -e SYNAPSE_OIDC_CLIENT_SECRET="$OIDC_CLIENT_SECRET" \
         --entrypoint python \
         "$SYNAPSE_IMAGE" - <<'PY'
 import os
@@ -236,12 +384,87 @@ for key, value in expected.items():
 if args.get("password") != os.environ["SYNAPSE_DB_PASSWORD"]:
     sys.exit("Le mot de passe PostgreSQL de Synapse ne correspond pas à .env.")
 
+config["registration_shared_secret"] = os.environ[
+    "SYNAPSE_REGISTRATION_SHARED_SECRET"
+]
+config["enable_registration"] = False
+config["enable_registration_without_verification"] = False
+config["allow_guest_access"] = False
+config["report_stats"] = False
+config["federation_domain_whitelist"] = []
+config["trusted_key_servers"] = []
+config["suppress_key_server_warning"] = True
+config["public_baseurl"] = "http://127.0.0.1:8008/"
+config["enable_registration"] = False
+config["password_config"] = {"enabled": False}
+config["oidc_providers"] = [
+    {
+        "idp_id": "kibare",
+        "idp_name": "Kibare",
+        "discover": False,
+        "skip_verification": True,
+        "issuer": "http://127.0.0.1:8082/realms/kibare",
+        "client_id": "kibare-synapse",
+        "client_secret": os.environ["SYNAPSE_OIDC_CLIENT_SECRET"],
+        "authorization_endpoint": "http://127.0.0.1:8082/realms/kibare/protocol/openid-connect/auth",
+        "token_endpoint": "http://keycloak:8080/realms/kibare/protocol/openid-connect/token",
+        "userinfo_endpoint": "http://keycloak:8080/realms/kibare/protocol/openid-connect/userinfo",
+        "jwks_uri": "http://keycloak:8080/realms/kibare/protocol/openid-connect/certs",
+        "scopes": ["openid", "profile", "email"],
+        "allow_existing_users": True,
+        "enable_registration": False,
+        "user_profile_method": "userinfo_endpoint",
+        "backchannel_logout_enabled": True,
+        "user_mapping_provider": {
+            "config": {
+                "localpart_template": "{{ user.preferred_username }}",
+                "display_name_template": "{{ user.name }}",
+            }
+        },
+    }
+]
+config["sso"] = {
+    "client_whitelist": [
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:8766/callback",
+    ]
+}
+
+for listener in config.get("listeners", []):
+    resources = listener.get("resources", [])
+    for resource in resources:
+        resource["names"] = [
+            name for name in resource.get("names", []) if name != "federation"
+        ]
+    listener["resources"] = [
+        resource for resource in resources if resource.get("names")
+    ]
+
+path = Path("/data/homeserver.yaml")
+temporary_path = path.with_suffix(".yaml.tmp")
+temporary_path.write_text(
+    yaml.safe_dump(config, sort_keys=False, allow_unicode=True)
+)
+os.chown(temporary_path, 991, 991)
+temporary_path.chmod(0o640)
+temporary_path.replace(path)
+
+data_dir = Path("/data")
+os.chown(data_dir, -1, 991)
+os.chmod(data_dir, data_dir.stat().st_mode & 0o777 | 0o070)
+signing_key = data_dir / f"{os.environ['SYNAPSE_SERVER_NAME']}.signing.key"
+os.chown(signing_key, 991, 991)
+signing_key.chmod(0o640)
+
 print("Configuration PostgreSQL cohérente.")
 PY
 
     info "Configuration existante vérifiée."
 
 fi
+
+unset OIDC_CLIENT_SECRET
+CONFIG_HASH_AFTER="$(file_checksum)"
 
 # --------------------------------------------------
 # 5. Vérification Docker Compose
@@ -272,6 +495,14 @@ info "Démarrage de Kibare."
 
 docker compose up -d --wait --wait-timeout 180 \
     || error "Le démarrage a échoué. Consulte les logs avec : docker compose logs."
+
+if [ -n "$CONFIG_HASH_BEFORE" ] && [ "$CONFIG_HASH_BEFORE" != "$CONFIG_HASH_AFTER" ]; then
+    info "Configuration Synapse modifiée : redémarrage du service pour appliquer les changements."
+    docker compose restart synapse \
+        || error "Le redémarrage de Synapse a échoué."
+    docker compose up -d --wait --wait-timeout 180 \
+        || error "Synapse n'est pas redevenu sain. Consulte les logs avec : docker compose logs synapse."
+fi
 
 # --------------------------------------------------
 # 8. Résultat
