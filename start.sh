@@ -166,6 +166,9 @@ for listener in config.get("listeners", []):
 # Les salons sont non-fédérés par défaut.
 config["default_federate"] = False
 
+# Bloquer la création de comptes : seul un admin peut créer des utilisateurs.
+config["enable_registration"] = False
+
 path.write_text(
     yaml.safe_dump(config, sort_keys=False, allow_unicode=True)
 )
